@@ -1,0 +1,4 @@
+*.cproject
+.project
+build/
+node_modules/
