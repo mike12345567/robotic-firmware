@@ -7,6 +7,7 @@
 #define NO_LOAD_MOTOR_RPM 140
 #define FRICTION_CALIBRATION 1.4
 #define MINIMUM_FRIC_CALIB 0.8
+#define TIME_MS_FULL_CIRCLE 4100
 
 Motor::Motor(unsigned int directionPin, unsigned int brakePin,
              unsigned int speedPin, bool reversed) {
@@ -68,24 +69,26 @@ void Motor::setState(MotorState state) {
 }
 
 void Motor::moveForDistance(unsigned int distance, DistanceUnit unit) {
+  double timeMs = 0;
   if (unit != DEGREES) {
-    unsigned int distanceMm = distance * unit;
-    double surfaceSpeed = calculateSurfaceSpeed();
     double calibration = (double) FRICTION_CALIBRATION * ((double) MINIMUM_SPEED / this->speed);
     if (calibration < MINIMUM_FRIC_CALIB) {
       calibration = MINIMUM_FRIC_CALIB;
     }
-    double timeMs = (double) ((distanceMm / surfaceSpeed) * SECONDS);
+    unsigned int distanceMm = distance * unit;
+    double surfaceSpeed = calculateSurfaceSpeed();
+    timeMs = (double) ((distanceMm / surfaceSpeed) * SECONDS);
     if (calibration) {
       timeMs *= calibration;
     }
-
-    this->stopTimer->setDuration(timeMs, MILLISECONDS);
-    this->stopTimer->start();
-    lastTravelTime = timeMs;
   } else {
-
+    double partOfCircle = (double) distance / 360;
+    timeMs = (double) TIME_MS_FULL_CIRCLE * partOfCircle * ((double) MINIMUM_SPEED / this->speed);
   }
+
+  this->stopTimer->setDuration(timeMs, MILLISECONDS);
+  this->stopTimer->start();
+  lastTravelTime = timeMs;
 }
 
 // returns speed in mm per second, needs the distance to calculate threshold

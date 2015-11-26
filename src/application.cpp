@@ -39,7 +39,7 @@ void setup() {
 
   motorRight->calibrate(MOTOR_R_CALIBRATION);
   Particle.function("makeMove", makeMove);
-  //serialTimer.start();
+  serialTimer.start();
 }
 
 void loop() {
