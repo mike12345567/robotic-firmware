@@ -37,6 +37,11 @@ then
   cmd="setSpeed,$2"
 fi
 
+if [ "$1" == "calibrateTurning" ]
+then
+  cmd="calibrateTurning,$2"
+fi
+
 if [ "$addDistance" == "Y" ] && [ -n "$2" ] && [ -n "$3" ]
 then
   if [ "$3" == "m" ] || [ "$3" == "mm" ] || [ "$3" == "cm" ] || [ "$3" == "degrees" ]

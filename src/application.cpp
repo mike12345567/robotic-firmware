@@ -13,7 +13,6 @@
 #define MOTOR_SPEED 128
 #define SPEED_STR_LEN 3
 #define MOTOR_R_CALIBRATION 10
-#define BRAKES_ON 0
 
 std::vector<RobotTimer*> robotTimers;
 
@@ -26,6 +25,7 @@ Timer serialTimer(SERIAL_DELAY_MS, serialOutput);
 Motor* motorRight;
 Motor* motorLeft;
 RobotState state = ROBOT_FORWARD;
+bool movingForDistance = false;
 
 unsigned int nextStateChangeMs = 0;
 unsigned int lastStateChangeMs = 0;
@@ -37,7 +37,6 @@ void setup() {
   motorLeft = new Motor(motorPinL, brakePinL, speedPinL, true);
   motorLeft->setSpeed(MOTOR_SPEED);
 
-  motorRight->calibrate(MOTOR_R_CALIBRATION);
   Particle.function("makeMove", makeMove);
   serialTimer.start();
 }
@@ -103,6 +102,12 @@ int makeMove(String param) {
         motorRight->setSpeed(speed);
         motorLeft->setSpeed(speed);
       }
+    } else if (strcmp("calibrateTurning", args[0]) == 0 && argCount == 2) {
+      unsigned int turnLengthMs = strtoul(args[1], NULL, 10);
+      if (turnLengthMs != UINTMAX_MAX) {
+        motorRight->calibrateTurning(turnLengthMs);
+        motorLeft->calibrateTurning(turnLengthMs);
+      }
     }
 
     if (moving && argCount == 3) {
@@ -125,6 +130,7 @@ void motorsSetDistance(char *arg, DistanceUnit unit) {
   unsigned int distance = strtoul(arg, NULL, 10);
   motorRight->moveForDistance(distance, unit);
   motorLeft->moveForDistance(distance, unit);
+  movingForDistance = true;
 }
 
 DistanceUnit getDistanceUnitFromArg(char *arg) {
@@ -160,6 +166,13 @@ const char* robotStateToString() {
 void changeState(RobotState newState) {
   Serial.print("CHANGING STATE -> ");
   Serial.println(robotStateToString());
+
+  if (newState == ROBOT_TURNING_LEFT || newState == ROBOT_TURNING_RIGHT) {
+    changeTurningState(true);
+  } else {
+    changeTurningState(false);
+  }
+
   switch (newState) {
     case ROBOT_STOPPED:
       motorRight->setState(STOPPED);
@@ -184,6 +197,24 @@ void changeState(RobotState newState) {
   }
 
   state = newState;
+}
+
+void motorStateChange() {
+  if (movingForDistance && motorLeft->getState() == STOPPED &&
+      motorRight->getState() == STOPPED) {
+    movingForDistance = false;
+    publishComplete();
+    changeState(ROBOT_STOPPED);
+  }
+}
+
+void publishComplete() {
+  Particle.publish("complete");
+}
+
+void changeTurningState(bool turning) {
+  motorRight->setTurning(turning);
+  motorLeft->setTurning(turning);
 }
 
 void serialOutput() {

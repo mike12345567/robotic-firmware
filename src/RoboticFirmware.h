@@ -16,11 +16,14 @@ enum RobotState {
 
 void serialOutput();
 void changeState(RobotState newState);
+void changeTurningState(bool turning);
 void motorsSetDistance(char *arg, DistanceUnit unit);
 DistanceUnit getDistanceUnitFromArg(char *arg);
 void turnComplete();
 int makeMove(String param);
 const char* robotStateToString();
 void addRobotTimer(RobotTimer *timer);
+void motorStateChange();
+void publishComplete();
 
 #endif

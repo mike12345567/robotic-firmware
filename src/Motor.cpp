@@ -1,13 +1,17 @@
 #include "Motor.h"
+#include "RoboticFirmware.h"
 #include <math.h>
 
 #define MINIMUM_SPEED 80
+#define MINIMUM_TURN_SPEED 170
 #define MAXIMUM_SPEED 255
 #define WHEEL_DIAMETER_MM 65
 #define NO_LOAD_MOTOR_RPM 140
 #define FRICTION_CALIBRATION 1.4
 #define MINIMUM_FRIC_CALIB 0.8
-#define TIME_MS_FULL_CIRCLE 4100
+#define SMALL_TURN_LOW_SPEED 1.15
+#define LOW_TURN_SPEED 220
+#define SMALL_TURN_ANGLE 90
 
 Motor::Motor(unsigned int directionPin, unsigned int brakePin,
              unsigned int speedPin, bool reversed) {
@@ -26,6 +30,13 @@ Motor::Motor(unsigned int directionPin, unsigned int brakePin,
 void Motor::process() {
   if (this->stateChange) {
 #ifndef NO_MOVEMENT
+    unsigned int trueSpeed = this->speed;
+    if (!turning) {
+      trueSpeed += extraSpeed;
+    } else if (trueSpeed < MINIMUM_TURN_SPEED) {
+      trueSpeed = MINIMUM_TURN_SPEED;
+    }
+
     switch (currentState) {
       case STOPPED:
         digitalWrite(this->brakePin, HIGH);
@@ -35,12 +46,12 @@ void Motor::process() {
       case FORWARD:
         digitalWrite(this->brakePin, LOW);
         digitalWrite(this->directionPin, reversed ? HIGH : LOW);
-        analogWrite(this->speedPin, speed + extraSpeed);
+        analogWrite(this->speedPin, trueSpeed);
         break;
       case BACKWARD:
         digitalWrite(this->brakePin, LOW);
         digitalWrite(this->directionPin, reversed ? LOW : HIGH);
-        analogWrite(this->speedPin, speed + extraSpeed);
+        analogWrite(this->speedPin, trueSpeed);
         break;
     }
 #endif
@@ -50,6 +61,7 @@ void Motor::process() {
   if (currentState != STOPPED && stopTimer->isComplete()) {
     setState(STOPPED);
     stopTimer->stop();
+    motorStateChange();
   }
 }
 
@@ -68,22 +80,35 @@ void Motor::setState(MotorState state) {
   stateChange = true;
 }
 
+MotorState Motor::getState() {
+  return currentState;
+}
+
 void Motor::moveForDistance(unsigned int distance, DistanceUnit unit) {
   double timeMs = 0;
+  unsigned int realSpeed = this->speed;
+  if (turning && realSpeed < MINIMUM_TURN_SPEED) {
+    realSpeed = MINIMUM_TURN_SPEED;
+  }
   if (unit != DEGREES) {
-    double calibration = (double) FRICTION_CALIBRATION * ((double) MINIMUM_SPEED / this->speed);
+    double calibration = (double) FRICTION_CALIBRATION * ((double) MINIMUM_SPEED / realSpeed);
     if (calibration < MINIMUM_FRIC_CALIB) {
       calibration = MINIMUM_FRIC_CALIB;
     }
     unsigned int distanceMm = distance * unit;
-    double surfaceSpeed = calculateSurfaceSpeed();
+    double surfaceSpeed = calculateSurfaceSpeed(realSpeed);
     timeMs = (double) ((distanceMm / surfaceSpeed) * SECONDS);
     if (calibration) {
       timeMs *= calibration;
     }
   } else {
     double partOfCircle = (double) distance / 360;
-    timeMs = (double) TIME_MS_FULL_CIRCLE * partOfCircle * ((double) MINIMUM_SPEED / this->speed);
+    double speedFactor = calculateSurfaceSpeed(MINIMUM_TURN_SPEED) / calculateSurfaceSpeed(realSpeed);
+    speedFactor *= partOfCircle;
+    timeMs = (double) (turnCalibrationMs * speedFactor);
+    if (distance <= SMALL_TURN_ANGLE && this->speed <= LOW_TURN_SPEED) {
+      timeMs *= SMALL_TURN_LOW_SPEED;
+    }
   }
 
   this->stopTimer->setDuration(timeMs, MILLISECONDS);
@@ -92,8 +117,8 @@ void Motor::moveForDistance(unsigned int distance, DistanceUnit unit) {
 }
 
 // returns speed in mm per second, needs the distance to calculate threshold
-double Motor::calculateSurfaceSpeed() {
-  double speedFactor = (double) this->speed / MAXIMUM_SPEED;
+double Motor::calculateSurfaceSpeed(unsigned int speed) {
+  double speedFactor = (double) speed / MAXIMUM_SPEED;
   double currentRpm = NO_LOAD_MOTOR_RPM * speedFactor;
   return (currentRpm * (WHEEL_DIAMETER_MM * M_PI) / 60);
 }
@@ -110,8 +135,17 @@ const char* Motor::stateToString() {
   return "UNKNOWN";
 }
 
-void Motor::calibrate(unsigned int extraSpeed) {
+void Motor::calibrateStraightLine(unsigned int extraSpeed) {
   this->extraSpeed = extraSpeed;
+}
+
+void Motor::calibrateTurning(unsigned int turnTimeMs) {
+  this->turnCalibrationMs = turnTimeMs;
+}
+
+void Motor::setTurning(bool turning) {
+  this->turning = turning;
+  stateChange = true;
 }
 
 void Motor::outputSerial() {
