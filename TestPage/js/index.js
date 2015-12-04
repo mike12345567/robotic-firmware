@@ -6,6 +6,7 @@ var noSelected = "none";
 
 EventEnum = {
     COMPLETE : "complete",
+    CALIBRATION_VALUES : "calibrationValues",
 }
 
 ButtonEnum = {
@@ -16,7 +17,7 @@ ButtonEnum = {
     STOP : {cmd: "stop", btnName: "stop-btn"},
     SEND_SPEED : {cmd: "setSpeed", btnName: "send-speed-btn"},
     CAL_TURNING : {cmd: "calibrateTurning", btnName: "cal-turning-btn"},
-    CAL_WHEELS : {cmd: "calibrateWheels", btnName: "cal-wheels-btn"},
+    CAL_WHEELS : {cmd: "calibrateSpeed", btnName: "cal-wheels-btn"},
 }
 
 InputEnum = {
@@ -35,7 +36,13 @@ $(document).ready(function() {
         device.onEvent(EventEnum.COMPLETE, function(data) {
             changeButtons(false);
         });
+        device.onEvent(EventEnum.CALIBRATION_VALUES, function(data) {
+            var array = base64js.toByteArray(data.data);
+            outputCalibration(array);
+        });
     });
+
+    setTimeout(getCalibrationValues, 1000);
     
     for (var btnEnumStr in ButtonEnum) {
         var button = ButtonEnum[btnEnumStr];
@@ -66,7 +73,10 @@ $(document).ready(function() {
             }
             
             if (name == ButtonEnum.CAL_WHEELS.btnName) {
-                // TODO: IMPLEMENT
+                var rightWheel = getInput(InputEnum.CAL_RIGHT_WHEEL);
+                var leftWheel = getInput(InputEnum.CAL_LEFT_WHEEL);
+                if (rightWheel == null || leftWheel == null) return;
+                particleCall(getCmd(name), rightWheel, leftWheel);
             }
             
             if (name == ButtonEnum.CAL_TURNING.btnName) {
@@ -80,6 +90,18 @@ $(document).ready(function() {
         });
     }
 });
+
+function outputCalibration(array) {
+    setInput(InputEnum.SPEED, array[0] | (array[1] << 8));
+    setInput(InputEnum.CAL_RIGHT_WHEEL, array[2] | (array[3] << 8));
+    setInput(InputEnum.CAL_LEFT_WHEEL, array[4] | (array[5] << 8));
+    setInput(InputEnum.CAL_TURNING, array[6] | (array[7] << 8));
+    
+}
+
+function getCalibrationValues() {
+    particleCall("sendCalibration");
+}
 
 function getCmd(btnName) {
     for (var btnEnumStr in ButtonEnum) {
@@ -129,4 +151,8 @@ function getInput(inputName) {
         if (value == "") value = null;
     }
     return value;
+}
+
+function setInput(inputName, value) {
+    $("#" + inputName).val(value);
 }

@@ -5,6 +5,7 @@
         <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
         <link rel="stylesheet" type="text/css" href="css/index.css">
         <script src="https://cdn.jsdelivr.net/sparkjs/1.0.0/spark.min.js"></script>
+        <script src="js/b64.js"></script>
         <script src="js/index.js"></script>
         <title>Robot Controls</title>
     </head>
@@ -21,7 +22,8 @@
                         <button type="button" class="btn btn-success" id="backward-btn">Backward</button><br>
                         <button type="button" class="btn btn-success" id="left-turn-btn">Left Turn</button><br>
                         <button type="button" class="btn btn-success" id="right-turn-btn">Right Turn</button><br>
-                        <h4>Controls</h4>
+                         
+                        <h4 id="controls-h">Controls</h4>
                         <button type="button" class="btn btn-info" id="send-speed-btn">Send Speed</button><br>
                         <button type="button" class="btn btn-info" id="cal-turning-btn">Calibrate Turning</button><br>
                         <button type="button" class="btn btn-info" id="cal-wheels-btn">Calibrate Wheels</button><br>
