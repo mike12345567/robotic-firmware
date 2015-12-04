@@ -1,6 +1,9 @@
 #include "RoboticFirmware.h"
 #include "spark_wiring_timer.h"
 #include "PinMapping.h"
+#include "RobotController.h"
+#include "PublishEvent.h"
+#include "StorageController.h"
 
 #include <cstring>
 #include <string.h>
@@ -8,13 +11,10 @@
 #include <stdlib.h>
 
 #define SERIAL_DELAY_MS 1000
-#define FORWARD_TIME_MS 1500
-#define TURNING_TIME_MS 600
-#define MOTOR_SPEED 128
-#define SPEED_STR_LEN 3
-#define MOTOR_R_CALIBRATION 10
 
 std::vector<RobotTimer*> robotTimers;
+RobotController* robotController = NULL;
+StorageController* storageController = NULL;
 
 STARTUP(WiFi.selectAntenna(ANT_AUTO));
 SYSTEM_MODE(AUTOMATIC);
@@ -22,29 +22,19 @@ SYSTEM_THREAD(ENABLED);
 
 Timer serialTimer(SERIAL_DELAY_MS, serialOutput);
 
-Motor* motorRight;
-Motor* motorLeft;
-RobotState state = ROBOT_FORWARD;
-bool movingForDistance = false;
-
 unsigned int nextStateChangeMs = 0;
 unsigned int lastStateChangeMs = 0;
 
 void setup() {
   Serial.begin(115200);
-  motorRight = new Motor(motorPinR, brakePinR, speedPinR, false);
-  motorRight->setSpeed(MOTOR_SPEED);
-  motorLeft = new Motor(motorPinL, brakePinL, speedPinL, true);
-  motorLeft->setSpeed(MOTOR_SPEED);
+  robotController = new RobotController();
+  storageController = new StorageController();
 
   Particle.function("makeMove", makeMove);
   serialTimer.start();
 }
 
 void loop() {
-  motorRight->process();
-  motorLeft->process();
-
   auto iterator = robotTimers.begin();
 
   while (iterator != robotTimers.end()) {
@@ -54,6 +44,7 @@ void loop() {
   }
 }
 
+/* TODO: Change this to something more meaningful */
 int makeMove(String param) {
   char *pointer = NULL;
   char *cstring = new char[param.length() + 1];
@@ -83,37 +74,43 @@ int makeMove(String param) {
 
     bool moving = false;
     if (strcmp("stop", args[0]) == 0 && argCount == 1) {
-      changeState(ROBOT_STOPPED);
+      robotController->changeState(ROBOT_STOPPED);
     } else if (strcmp("forward", args[0]) == 0 && argCount >= 1) {
-      changeState(ROBOT_FORWARD);
+      robotController->changeState(ROBOT_FORWARD);
       moving = true;
     } else if (strcmp("turnLeft", args[0]) == 0 && argCount >= 1) {
-      changeState(ROBOT_TURNING_LEFT);
+      robotController->changeState(ROBOT_TURNING_LEFT);
       moving = true;
     } else if (strcmp("turnRight", args[0]) == 0 && argCount >= 1) {
-      changeState(ROBOT_TURNING_RIGHT);
+      robotController->changeState(ROBOT_TURNING_RIGHT);
       moving = true;
     } else if (strcmp("backward", args[0]) == 0 && argCount >= 1) {
-      changeState(ROBOT_BACKWARD);
+      robotController->changeState(ROBOT_BACKWARD);
       moving = true;
     } else if (strcmp("setSpeed", args[0]) == 0 && argCount == 2) {
       unsigned int speed = strtoul(args[1], NULL, 10);
       if (speed != UINTMAX_MAX) {
-        motorRight->setSpeed(speed);
-        motorLeft->setSpeed(speed);
+        robotController->setRobotSpeed(speed);
       }
     } else if (strcmp("calibrateTurning", args[0]) == 0 && argCount == 2) {
       unsigned int turnLengthMs = strtoul(args[1], NULL, 10);
       if (turnLengthMs != UINTMAX_MAX) {
-        motorRight->calibrateTurning(turnLengthMs);
-        motorLeft->calibrateTurning(turnLengthMs);
+        robotController->calibrateTurning(turnLengthMs);
       }
+    } else if (strcmp("calibrateSpeed", args[0]) == 0 && argCount == 3) {
+      unsigned int rightCal = strtoul(args[1], NULL, 10);
+      unsigned int leftCal = strtoul(args[2], NULL, 10);
+      if (leftCal != UINTMAX_MAX && rightCal != UINTMAX_MAX) {
+        robotController->calibrateSpeed(rightCal, leftCal);
+      }
+    } else if (strcmp("sendCalibration", args[0]) == 0 && argCount == 1) {
+      PublishEvent::PublishCalibration();
     }
 
     if (moving && argCount == 3) {
       Serial.println(args[1]);
       Serial.println(args[2]);
-      motorsSetDistance(args[1], getDistanceUnitFromArg(args[2]));
+      robotController->motorsSetDistance(args[1], getDistanceUnitFromArg(args[2]));
     }
     free(args);
   }
@@ -126,11 +123,12 @@ void addRobotTimer(RobotTimer *timer) {
   robotTimers.push_back(timer);
 }
 
-void motorsSetDistance(char *arg, DistanceUnit unit) {
-  unsigned int distance = strtoul(arg, NULL, 10);
-  motorRight->moveForDistance(distance, unit);
-  motorLeft->moveForDistance(distance, unit);
-  movingForDistance = true;
+RobotController* getRobotController() {
+  return robotController;
+}
+
+StorageController* getStorageController() {
+  return storageController;
 }
 
 DistanceUnit getDistanceUnitFromArg(char *arg) {
@@ -146,77 +144,6 @@ DistanceUnit getDistanceUnitFromArg(char *arg) {
   return (DistanceUnit) -2;
 }
 
-const char* robotStateToString() {
-  switch (state) {
-    case ROBOT_STOPPED:
-      return "ROBOT_STOPPED";
-    case ROBOT_FORWARD:
-      return "ROBOT_FORWARD";
-    case ROBOT_TURNING_LEFT:
-      return "ROBOT_TURNING_LEFT";
-    case ROBOT_TURNING_RIGHT:
-      return "ROBOT_TURNING_RIGHT";
-    case ROBOT_BACKWARD:
-      return "ROBOT_BACKWARD";
-  }
-
-  return "UNKNOWN";
-}
-
-void changeState(RobotState newState) {
-  Serial.print("CHANGING STATE -> ");
-  Serial.println(robotStateToString());
-
-  if (newState == ROBOT_TURNING_LEFT || newState == ROBOT_TURNING_RIGHT) {
-    changeTurningState(true);
-  } else {
-    changeTurningState(false);
-  }
-
-  switch (newState) {
-    case ROBOT_STOPPED:
-      motorRight->setState(STOPPED);
-      motorLeft->setState(STOPPED);
-      break;
-    case ROBOT_FORWARD:
-      motorRight->setState(FORWARD);
-      motorLeft->setState(FORWARD);
-      break;
-    case ROBOT_TURNING_LEFT:
-      motorRight->setState(FORWARD);
-      motorLeft->setState(STOPPED);
-      break;
-    case ROBOT_TURNING_RIGHT:
-      motorRight->setState(STOPPED);
-      motorLeft->setState(FORWARD);
-      break;
-    case ROBOT_BACKWARD:
-      motorRight->setState(BACKWARD);
-      motorLeft->setState(BACKWARD);
-      break;
-  }
-
-  state = newState;
-}
-
-void motorStateChange() {
-  if (movingForDistance && motorLeft->getState() == STOPPED &&
-      motorRight->getState() == STOPPED) {
-    movingForDistance = false;
-    publishComplete();
-    changeState(ROBOT_STOPPED);
-  }
-}
-
-void publishComplete() {
-  Particle.publish("complete");
-}
-
-void changeTurningState(bool turning) {
-  motorRight->setTurning(turning);
-  motorLeft->setTurning(turning);
-}
-
 void serialOutput() {
   // Clear screen & home
   Serial.write(27);
@@ -226,12 +153,5 @@ void serialOutput() {
 
   Serial.println("Robotic Firmware - 2015 - Michael Drury\n");
 
-  Serial.println("ROBOT STATE");
-  Serial.print("\tCurrent -> ");
-  Serial.println(robotStateToString());
-
-  Serial.println("MOTOR A");
-  motorRight->outputSerial();
-  Serial.println("MOTOR B");
-  motorLeft->outputSerial();
+  robotController->outputSerial();
 }

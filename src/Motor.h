@@ -3,8 +3,7 @@
 
 #include "application.h"
 #include "RobotTimer.h"
-
-#define TIME_MS_FULL_CIRCLE 2050
+#include "Calibration.h"
 
 enum MotorState {
   FORWARD,
@@ -19,15 +18,15 @@ enum DistanceUnit {
   DEGREES = -1
 };
 
+class RobotController;
+
 class Motor {
   private:
     RobotTimer* stopTimer;
     unsigned int speed = 0;
-    unsigned int extraSpeed = 0;
     unsigned int directionPin;
     unsigned int brakePin;
     unsigned int speedPin;
-    unsigned int turnCalibrationMs = TIME_MS_FULL_CIRCLE;
 
     unsigned int lastTravelTime = 0;
     bool turning = false;
@@ -36,19 +35,25 @@ class Motor {
     bool movingForDistance = false;
     MotorState currentState;
 
+    typedef void (RobotController::*CallbackType)(void);
+    RobotController* parent = NULL;
+    CallbackType callback = NULL;
+
     double calculateSurfaceSpeed(unsigned int speed);
     const char* stateToString();
 
   public:
-    Motor(unsigned int directionPin, unsigned int brakePin, unsigned int speedPin, bool reversed);
+    Calibration *calibration = NULL;
 
-    void setSpeed(unsigned int speed);
-    void calibrateStraightLine(unsigned int extraSpeed);
-    void calibrateTurning(unsigned int turnTimeMs);
+    Motor(unsigned int directionPin, unsigned int brakePin, unsigned int speedPin, bool reversed);
     void process();
+
+    void setStateCallback(RobotController* parent, CallbackType callbackFunc);
+    void setSpeed(unsigned int speed);
     void setTurning(bool turning);
-    MotorState getState();
     void setState(MotorState state);
+
+    MotorState getState();
     void moveForDistance(unsigned int distance, DistanceUnit unit);
     void outputSerial();
 };

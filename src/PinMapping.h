@@ -3,11 +3,15 @@
 
 #include "application.h"
 
-unsigned int brakePinR = A4;
-unsigned int motorPinR = D3;
-unsigned int speedPinR = WKP;
-unsigned int brakePinL = A5;
-unsigned int motorPinL = D4;
-unsigned int speedPinL = D2;
+class PinMapping {
+  private:
+  public:
+    const static unsigned int brakePinR = A4;
+    const static unsigned int motorPinR = D3;
+    const static unsigned int speedPinR = WKP;
+    const static unsigned int brakePinL = A5;
+    const static unsigned int motorPinL = D4;
+    const static unsigned int speedPinL = D2;
+};
 
 #endif

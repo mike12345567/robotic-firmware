@@ -21,6 +21,7 @@ Motor::Motor(unsigned int directionPin, unsigned int brakePin,
   this->speedPin = speedPin;
   this->reversed = reversed;
   this->currentState = STOPPED;
+  this->calibration = new Calibration();
 
   pinMode(this->directionPin, OUTPUT);
   pinMode(this->brakePin, OUTPUT);
@@ -32,7 +33,7 @@ void Motor::process() {
 #ifndef NO_MOVEMENT
     unsigned int trueSpeed = this->speed;
     if (!turning) {
-      trueSpeed += extraSpeed;
+      trueSpeed += calibration->getSpeedCalibration();
     } else if (trueSpeed < MINIMUM_TURN_SPEED) {
       trueSpeed = MINIMUM_TURN_SPEED;
     }
@@ -61,7 +62,9 @@ void Motor::process() {
   if (currentState != STOPPED && stopTimer->isComplete()) {
     setState(STOPPED);
     stopTimer->stop();
-    motorStateChange();
+    if (parent != NULL && callback != NULL) {
+      (parent->*callback)();
+    }
   }
 }
 
@@ -73,6 +76,11 @@ void Motor::setSpeed(unsigned int speed) {
   } else {
     this->speed = speed;
   }
+}
+
+void Motor::setStateCallback(RobotController* parent, CallbackType callbackFunc) {
+  this->parent = parent;
+  this->callback = callbackFunc;
 }
 
 void Motor::setState(MotorState state) {
@@ -105,7 +113,7 @@ void Motor::moveForDistance(unsigned int distance, DistanceUnit unit) {
     double partOfCircle = (double) distance / 360;
     double speedFactor = calculateSurfaceSpeed(MINIMUM_TURN_SPEED) / calculateSurfaceSpeed(realSpeed);
     speedFactor *= partOfCircle;
-    timeMs = (double) (turnCalibrationMs * speedFactor);
+    timeMs = (double) (calibration->getTurnCalibration() * speedFactor);
     if (distance <= SMALL_TURN_ANGLE && this->speed <= LOW_TURN_SPEED) {
       timeMs *= SMALL_TURN_LOW_SPEED;
     }
@@ -135,14 +143,6 @@ const char* Motor::stateToString() {
   return "UNKNOWN";
 }
 
-void Motor::calibrateStraightLine(unsigned int extraSpeed) {
-  this->extraSpeed = extraSpeed;
-}
-
-void Motor::calibrateTurning(unsigned int turnTimeMs) {
-  this->turnCalibrationMs = turnTimeMs;
-}
-
 void Motor::setTurning(bool turning) {
   this->turning = turning;
   stateChange = true;
@@ -156,7 +156,7 @@ void Motor::outputSerial() {
   Serial.println(speed);
 
   Serial.print("\tMotor calibration -> ");
-  Serial.println(extraSpeed);
+  Serial.println(calibration->getSpeedCalibration());
 
   if (lastTravelTime) {
     Serial.print("\tMotor travel time (seconds) -> ");
