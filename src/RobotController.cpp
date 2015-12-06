@@ -61,21 +61,21 @@ void RobotController::process() {
   motorRight->process();
   motorLeft->process();
 
-  //unsigned int distanceCm = getFrontUltrasonicSensor()->getDistanceCm();
+  unsigned int distanceCm = getFrontUltrasonicSensor()->getDistanceCm();
 
-//  if (distanceCm < BLOCKED_DISTANCE_CM &&
-//      this->state != ROBOT_STOPPED) {
-//    stateBeforeStop = state;
-//    changeState(ROBOT_STOPPED);
-//    notify(ROBOT_REASON_STOP);
-//  }
-//
-//  if (stateBeforeStop != ROBOT_NO_STATE &&
-//      distanceCm > BLOCKED_DISTANCE_CM) {
-//    changeState(stateBeforeStop);
-//    stateBeforeStop = ROBOT_NO_STATE;
-//    notify(ROBOT_REASON_CONTINUING);
-//  }
+  if (distanceCm < BLOCKED_DISTANCE_CM &&
+      this->state != ROBOT_STOPPED) {
+    stateBeforeStop = state;
+    changeState(ROBOT_STOPPED);
+    notify(ROBOT_REASON_STOP);
+  }
+
+  if (stateBeforeStop != ROBOT_NO_STATE &&
+      distanceCm > BLOCKED_DISTANCE_CM) {
+    changeState(stateBeforeStop);
+    stateBeforeStop = ROBOT_NO_STATE;
+    notify(ROBOT_REASON_CONTINUING);
+  }
 }
 
 void RobotController::notify(RobotNotifyReason reason) {
@@ -92,6 +92,9 @@ void RobotController::motorsSetDistance(char *arg, DistanceUnit unit) {
 void RobotController::changeState(RobotState newState) {
   Serial.print("CHANGING STATE -> ");
   Serial.println(robotStateToString(newState));
+  if (stateBeforeStop != ROBOT_NO_STATE && newState == ROBOT_STOPPED) {
+    stateBeforeStop = ROBOT_NO_STATE;
+  }
 
   if (newState == ROBOT_TURNING_LEFT || newState == ROBOT_TURNING_RIGHT) {
     changeTurningState(true);

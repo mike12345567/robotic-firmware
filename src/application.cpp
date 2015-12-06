@@ -17,7 +17,7 @@
 std::vector<RobotTimer*> robotTimers;
 RobotController* robotController = NULL;
 StorageController* storageController = NULL;
-//UltrasonicSensor* ultrasonicSensor = NULL;
+UltrasonicSensor* ultrasonicSensor = NULL;
 
 STARTUP(WiFi.selectAntenna(ANT_AUTO));
 SYSTEM_MODE(AUTOMATIC);
@@ -32,7 +32,7 @@ void setup() {
   Serial.begin(9600);
   robotController = new RobotController();
   storageController = new StorageController();
-  //ultrasonicSensor = new UltrasonicSensor();
+  ultrasonicSensor = new UltrasonicSensor();
 
   Particle.function("makeMove", makeMove);
   serialTimer.start();
@@ -40,7 +40,8 @@ void setup() {
 
 void loop() {
   auto iterator = robotTimers.begin();
-  //ultrasonicSensor->process();
+  ultrasonicSensor->process();
+  robotController->process();
 
   while (iterator != robotTimers.end()) {
     RobotTimer* timer = *iterator;
@@ -137,7 +138,7 @@ StorageController* getStorageController() {
 }
 
 UltrasonicSensor* getFrontUltrasonicSensor() {
-  //return ultrasonicSensor;
+  return ultrasonicSensor;
 }
 
 DistanceUnit getDistanceUnitFromArg(char *arg) {
@@ -164,5 +165,5 @@ void serialOutput() {
 
   robotController->outputSerial();
   Serial.println("\n");
-  //ultrasonicSensor->outputSerial();
+  ultrasonicSensor->outputSerial();
 }
