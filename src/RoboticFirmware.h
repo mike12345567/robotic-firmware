@@ -2,6 +2,7 @@
 #define ROBOTIC_FIRMWARE_H
 
 #include "application.h"
+#include "UltrasonicSensor.h"
 #include "Motor.h"
 #include "RobotTimer.h"
 #include <vector>
@@ -16,6 +17,7 @@ const char* robotStateToString();
 void addRobotTimer(RobotTimer *timer);
 void publishComplete();
 RobotController* getRobotController();
+UltrasonicSensor* getFrontUltrasonicSensor();
 StorageController* getStorageController();
 
 #endif
