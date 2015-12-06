@@ -12,6 +12,8 @@ class PinMapping {
     const static unsigned int brakePinL = A5;
     const static unsigned int motorPinL = D4;
     const static unsigned int speedPinL = D2;
+    const static unsigned int triggerPin = D1;
+    const static unsigned int echoPin = D0;
 };
 
 #endif

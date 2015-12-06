@@ -22,7 +22,7 @@ void StorageController::writeUnsignedInt(StorageType type, unsigned int integer)
   }
 
   conversion.number = integer;
-  for (int i = 0; i < sizeof(conversion.bytes); i++) {
+  for (unsigned int i = 0; i < sizeof(conversion.bytes); i++) {
     EEPROM.write(type + i, conversion.bytes[i]);
   }
 }
@@ -34,7 +34,7 @@ unsigned int StorageController::readUnsignedInt(StorageType type) {
     return 0;
   }
 
-  for (int i = 0; i < sizeof(conversion.bytes); i++) {
+  for (unsigned int i = 0; i < sizeof(conversion.bytes); i++) {
     conversion.bytes[i] = EEPROM.read(type + i);
   }
   return conversion.number;

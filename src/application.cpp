@@ -4,17 +4,20 @@
 #include "RobotController.h"
 #include "PublishEvent.h"
 #include "StorageController.h"
+#include "UltrasonicSensor.h"
 
 #include <cstring>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <deque>
 
-#define SERIAL_DELAY_MS 1000
+#define SERIAL_DELAY_MS 2000
 
 std::vector<RobotTimer*> robotTimers;
 RobotController* robotController = NULL;
 StorageController* storageController = NULL;
+UltrasonicSensor* ultrasonicSensor = NULL;
 
 STARTUP(WiFi.selectAntenna(ANT_AUTO));
 SYSTEM_MODE(AUTOMATIC);
@@ -26,9 +29,10 @@ unsigned int nextStateChangeMs = 0;
 unsigned int lastStateChangeMs = 0;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   robotController = new RobotController();
   storageController = new StorageController();
+  ultrasonicSensor = new UltrasonicSensor();
 
   Particle.function("makeMove", makeMove);
   serialTimer.start();
@@ -36,6 +40,8 @@ void setup() {
 
 void loop() {
   auto iterator = robotTimers.begin();
+  ultrasonicSensor->process();
+  robotController->process();
 
   while (iterator != robotTimers.end()) {
     RobotTimer* timer = *iterator;
@@ -131,6 +137,10 @@ StorageController* getStorageController() {
   return storageController;
 }
 
+UltrasonicSensor* getFrontUltrasonicSensor() {
+  return ultrasonicSensor;
+}
+
 DistanceUnit getDistanceUnitFromArg(char *arg) {
   if (strcmp("mm", arg) == 0) {
     return MM;
@@ -154,4 +164,6 @@ void serialOutput() {
   Serial.println("Robotic Firmware - 2015 - Michael Drury\n");
 
   robotController->outputSerial();
+  Serial.println("\n");
+  ultrasonicSensor->outputSerial();
 }

@@ -10,19 +10,28 @@ enum RobotState {
   ROBOT_FORWARD,
   ROBOT_STOPPED,
   ROBOT_BACKWARD,
+  ROBOT_NO_STATE,
+};
+
+enum RobotNotifyReason {
+  ROBOT_REASON_STOP,
+  ROBOT_REASON_CONTINUING,
+  ROBOT_REASON_FAIL
 };
 
 class RobotController {
   private:
     unsigned int speed = 0;
-    RobotState state = ROBOT_FORWARD;
+    RobotState state = ROBOT_NO_STATE;
+    RobotState stateBeforeStop = ROBOT_NO_STATE;
     bool movingForDistance = false;
 
     Motor* motorRight = NULL;
     Motor* motorLeft = NULL;
 
     void changeTurningState(bool turning);
-    const char* robotStateToString();
+    const char* robotStateToString(RobotState state);
+    void notify(RobotNotifyReason reason);
 
   public:
     RobotController();

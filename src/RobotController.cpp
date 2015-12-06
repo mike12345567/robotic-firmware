@@ -16,6 +16,7 @@
 #define MOTOR_CALIBRATION_MAX 64
 #define DEFAULT_TURNING_CALIBRATION 2000
 #define MAX_TURNING_TIME_MS 25000
+#define BLOCKED_DISTANCE_CM 30
 
 RobotController::RobotController() {
   motorRight = new Motor(PinMapping::motorPinR, PinMapping::brakePinR,
@@ -59,6 +60,26 @@ RobotController::RobotController() {
 void RobotController::process() {
   motorRight->process();
   motorLeft->process();
+
+  unsigned int distanceCm = getFrontUltrasonicSensor()->getDistanceCm();
+
+  if (distanceCm < BLOCKED_DISTANCE_CM &&
+      this->state != ROBOT_STOPPED) {
+    stateBeforeStop = state;
+    changeState(ROBOT_STOPPED);
+    notify(ROBOT_REASON_STOP);
+  }
+
+  if (stateBeforeStop != ROBOT_NO_STATE &&
+      distanceCm > BLOCKED_DISTANCE_CM) {
+    changeState(stateBeforeStop);
+    stateBeforeStop = ROBOT_NO_STATE;
+    notify(ROBOT_REASON_CONTINUING);
+  }
+}
+
+void RobotController::notify(RobotNotifyReason reason) {
+
 }
 
 void RobotController::motorsSetDistance(char *arg, DistanceUnit unit) {
@@ -70,7 +91,10 @@ void RobotController::motorsSetDistance(char *arg, DistanceUnit unit) {
 
 void RobotController::changeState(RobotState newState) {
   Serial.print("CHANGING STATE -> ");
-  Serial.println(robotStateToString());
+  Serial.println(robotStateToString(newState));
+  if (stateBeforeStop != ROBOT_NO_STATE && newState == ROBOT_STOPPED) {
+    stateBeforeStop = ROBOT_NO_STATE;
+  }
 
   if (newState == ROBOT_TURNING_LEFT || newState == ROBOT_TURNING_RIGHT) {
     changeTurningState(true);
@@ -151,7 +175,7 @@ void RobotController::motorStateChange() {
   }
 }
 
-const char* RobotController::robotStateToString() {
+const char* RobotController::robotStateToString(RobotState state) {
   switch (state) {
     case ROBOT_STOPPED:
       return "ROBOT_STOPPED";
@@ -163,6 +187,8 @@ const char* RobotController::robotStateToString() {
       return "ROBOT_TURNING_RIGHT";
     case ROBOT_BACKWARD:
       return "ROBOT_BACKWARD";
+    case ROBOT_NO_STATE:
+      return "ROBOT_NO_STATE";
   }
 
   return "UNKNOWN";
@@ -171,11 +197,15 @@ const char* RobotController::robotStateToString() {
 void RobotController::outputSerial() {
   Serial.println("ROBOT STATE");
   Serial.print("\tCurrent -> ");
-  Serial.println(robotStateToString());
+  Serial.println(robotStateToString(state));
 
   Serial.println("MOTOR A");
   motorRight->outputSerial();
   Serial.println("MOTOR B");
   motorLeft->outputSerial();
+
+  if (stateBeforeStop != ROBOT_NO_STATE) {
+    Serial.println("Currently blocked");
+  }
 }
 

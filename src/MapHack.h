@@ -1,4 +1,3 @@
 #undef min
 #undef max
-
-#include <map>
+#undef swap
