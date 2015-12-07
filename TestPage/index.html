@@ -10,12 +10,13 @@
         <title>Robot Controls</title>
     </head>
     <body>
+    <div class="wrapper">
         <div class="panel panel-default main-form">
             <div class="panel-heading">
                 <h3>Control Buttons</h3>
             </div>
             <div class="panel-body">
-                <div id="left-div" class="col">
+                <div id="left-div" class="col-md-4">
                     <h4>Movement</h4>
                     <div id="movement-div">
                         <button type="button" class="btn btn-success" id="forward-btn">Forward</button><br>
@@ -25,12 +26,13 @@
                          
                         <h4 id="controls-h">Controls</h4>
                         <button type="button" class="btn btn-info" id="send-speed-btn">Send Speed</button><br>
+                        <button type="button" class="btn btn-info" id="cal-friction-btn">Send Friction</button><br>
                         <button type="button" class="btn btn-info" id="cal-turning-btn">Calibrate Turning</button><br>
                         <button type="button" class="btn btn-info" id="cal-wheels-btn">Calibrate Wheels</button><br>
                         <button type="button" class="btn btn-danger" id="stop-btn">Stop</button><br>
                     </div>
                 </div>
-                <div id="right-div" class="col">
+                <div id="right-div" class="col-md-4">
                     <h4>Values</h4>
                     <div class="text-input-area">
                         <span>Distance:</span>
@@ -48,6 +50,16 @@
                     </div>
                     
                     <div class="text-input-area">
+                        <span>Friction:</span>
+                        <input type="text" class="form-control" id="friction-input">
+                    </div>
+                    
+                    <div class="text-input-area">
+                        <span>Dist (Front):</span>
+                        <input type="text" class="form-control" id="dist-front-output">
+                    </div>
+                    
+                    <div class="text-input-area">
                         <span>Units (dist):</span>
                         <select type="text" class="form-control" id="unit-input">
                             <option>none</option>
@@ -56,9 +68,17 @@
                             <option>m</option>
                         </select>
                     </div>
+                    
+                    <h4>Joystick</h4>
+                    <div id="joystick-div">
+                        <button type="button" class="btn btn-primary" id="joy-fwd-btn">&#8593;</button><br>
+                        <button type="button" class="btn btn-primary" id="joy-left-btn">&#8592;</button>
+                        <button type="button" class="btn btn-primary" id="joy-right-btn">&#8594;</button><br>
+                        <button type="button" class="btn btn-primary" id="joy-back-btn">&#8595;</button><br>
+                    </div>
                 </div>
                 
-                <div id="right-div" class="col">
+                <div id="right-div" class="col-md-4">
                     <h4>Calibration</h4>
                     
                     <div class="text-input-area">
@@ -76,11 +96,17 @@
                      <div class="text-input-area">
                         <span>Right Wheel: </span>
                          <input type="text" class="form-control" id="right-wheel-input">
+                         <p><i>Note: The above options calibrate how much extra speed should be applied to a wheel to keep the robot 
+                         running straight.</i></p>
                     </div>
-                    <p><i>Note: The above options calibrate how much extra speed should be applied to a wheel to keep the robot 
-                    running straight.</i></p>
+                    
+                    <div class="text-output-area">
+                      <label for="event-area">Events:</label>
+                      <textarea class="form-control" rows="10" id="event-area"></textarea>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
     </body>
 </html>
