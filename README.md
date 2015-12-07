@@ -13,6 +13,7 @@ Current Inventory
 =================
 
 Currently the following items are 'in stock' (can be used):
+
 * 1 x Dagu 2WD chassis
 
 * 1 x 6 battery pack (AA)
