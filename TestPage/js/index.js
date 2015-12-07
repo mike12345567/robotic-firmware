@@ -3,10 +3,13 @@ var accessToken = "da837cbd013221af2cac61eea03e15d8459c49ea";
 var funcName = "makeMove";
 var rotationUnit = "degrees";
 var noSelected = "none";
+var waitForLift = false;
 
 EventEnum = {
     COMPLETE : "complete",
     CALIBRATION_VALUES : "calibrationValues",
+    ULTRASONIC_VALUES: "distanceCm",
+    STOPPED : "stopped",
 }
 
 ButtonEnum = {
@@ -18,6 +21,14 @@ ButtonEnum = {
     SEND_SPEED : {cmd: "setSpeed", btnName: "send-speed-btn"},
     CAL_TURNING : {cmd: "calibrateTurning", btnName: "cal-turning-btn"},
     CAL_WHEELS : {cmd: "calibrateSpeed", btnName: "cal-wheels-btn"},
+    CAL_FRICTION : {cmd: "calibrateFriction", btnName: "cal-friction-btn"}
+}
+
+JoystickEnum = {
+    JOY_FWD : { cmd: "forward", btnName: "joy-fwd-btn"},
+    JOY_LEFT : { cmd: "turnLeft", btnName: "joy-left-btn"},
+    JOY_RIGHT : { cmd: "turnRight", btnName: "joy-right-btn"},
+    JOY_BACK : { cmd: "backward", btnName: "joy-back-btn"},
 }
 
 InputEnum = {
@@ -27,7 +38,10 @@ InputEnum = {
     UNIT : "unit-input",
     CAL_LEFT_WHEEL : "left-wheel-input",
     CAL_RIGHT_WHEEL : "right-wheel-input",
-    CAL_TURNING : "turning-cal-input"
+    CAL_TURNING : "turning-cal-input",
+    CAL_FRICTION : "friction-input",
+    DIST_FRONT : "dist-front-output",
+    EVENTS : "event-area",
 }
 
 $(document).ready(function() {
@@ -35,10 +49,22 @@ $(document).ready(function() {
     spark.getDevice(deviceID).then(function(device) {
         device.onEvent(EventEnum.COMPLETE, function(data) {
             changeButtons(false);
+            outputEvent(EventEnum.COMPLETE);
         });
+        
+        device.onEvent(EventEnum.STOPPED, function(data) {
+            changeButtons(false);
+            outputEvent(EventEnum.STOPPED);
+        });
+        
         device.onEvent(EventEnum.CALIBRATION_VALUES, function(data) {
             var array = base64js.toByteArray(data.data);
             outputCalibration(array);
+        });
+        
+        device.onEvent(EventEnum.ULTRASONIC_VALUES, function(data) {
+            var array = base64js.toByteArray(data.data);
+            outputDistances(array);
         });
     });
 
@@ -50,7 +76,7 @@ $(document).ready(function() {
             var name = event.target.id;
             
             if (name == ButtonEnum.SEND_SPEED.btnName && 
-                getInput(InputEnum.SPEED) != NULL) {
+                getInput(InputEnum.SPEED) != null) {
                 particleCall(getCmd(name), getInput(InputEnum.SPEED));
             }
             
@@ -83,20 +109,51 @@ $(document).ready(function() {
                 particleCall(getCmd(name), getInput(InputEnum.CAL_TURNING));
             }
             
+            if (name == ButtonEnum.CAL_FRICTION.btnName){
+                particleCall(getCmd(name), getInput(InputEnum.CAL_FRICTION));
+            }
+            
             if (name == ButtonEnum.STOP.btnName) {
                 particleCall(getCmd(name));
                 changeButtons(false);
             }
         });
     }
+    
+    for (var joyEnumStr in JoystickEnum) {
+        var button = JoystickEnum[joyEnumStr];
+        $("#" + button.btnName).mousedown(function() {
+            var name = event.target.id;
+            particleCall(getCmd(name));
+            waitForLift = true;
+        });
+    }
+    
+    $(document).mouseup(function() {
+        if (waitForLift) {
+            particleCall("stop");
+            waitForLift = false;
+        }
+    });
 });
+
+function outputEvent(eventName) {
+    var date = new Date();
+    var time = date.getTime();
+    $("#" + InputEnum.EVENTS).append(eventName + " event at:" + time.toString() + "\n");
+}
 
 function outputCalibration(array) {
     setInput(InputEnum.SPEED, array[0] | (array[1] << 8));
     setInput(InputEnum.CAL_RIGHT_WHEEL, array[2] | (array[3] << 8));
     setInput(InputEnum.CAL_LEFT_WHEEL, array[4] | (array[5] << 8));
     setInput(InputEnum.CAL_TURNING, array[6] | (array[7] << 8));
-    
+    setInput(InputEnum.CAL_FRICTION, array[8] | (array[9] << 8));
+}
+
+function outputDistances(array){
+    var value = array[0] | (array[1] << 8);
+    setInput(InputEnum.DIST_FRONT, value.toString() + "cm");
 }
 
 function getCalibrationValues() {
@@ -107,6 +164,12 @@ function getCmd(btnName) {
     for (var btnEnumStr in ButtonEnum) {
         var button = ButtonEnum[btnEnumStr];
         if (button.btnName == btnName) {
+            return button.cmd;
+        }
+    }
+    for (var joyEnumStr in JoystickEnum){
+        var button = JoystickEnum[joyEnumStr];
+        if (button.btnName == btnName){
             return button.cmd;
         }
     }
