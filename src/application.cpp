@@ -5,6 +5,7 @@
 #include "PublishEvent.h"
 #include "StorageController.h"
 #include "UltrasonicSensor.h"
+#include "Gyroscope.h"
 
 #include <cstring>
 #include <string.h>
@@ -18,6 +19,7 @@ std::vector<RobotTimer*> robotTimers;
 RobotController* robotController = NULL;
 StorageController* storageController = NULL;
 UltrasonicSensor* ultrasonicSensor = NULL;
+Gyroscope* gyroscope = NULL;
 
 STARTUP(WiFi.selectAntenna(ANT_AUTO));
 SYSTEM_MODE(AUTOMATIC);
@@ -33,6 +35,7 @@ void setup() {
   robotController = new RobotController();
   storageController = new StorageController();
   ultrasonicSensor = new UltrasonicSensor();
+  gyroscope = new Gyroscope();
 
   PublishEvent::Setup();
   Particle.function("makeMove", makeMove);
@@ -42,6 +45,7 @@ void setup() {
 void loop() {
   auto iterator = robotTimers.begin();
   ultrasonicSensor->process();
+  gyroscope->process();
   robotController->process();
 
   while (iterator != robotTimers.end()) {
@@ -177,4 +181,5 @@ void serialOutput() {
   robotController->outputSerial();
   Serial.println("\n");
   ultrasonicSensor->outputSerial();
+  gyroscope->outputSerial();
 }
