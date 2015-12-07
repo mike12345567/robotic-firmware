@@ -3,7 +3,9 @@
 
 #include "application.h"
 #include "RobotTimer.h"
-#include "Calibration.h"
+
+#define LAST_MOTOR (1 << 8)
+#define DEFAULT_MOTOR_SPEED 160
 
 enum MotorState {
   FORWARD,
@@ -18,11 +20,19 @@ enum DistanceUnit {
   DEGREES = -1
 };
 
+enum MotorPosition {
+  MOTOR_POS_LEFT = 1 << 1,
+  MOTOR_POS_RIGHT = (1 << 2) | LAST_MOTOR,
+  MOTOR_POS_UNSET = -1,
+};
+
 class RobotController;
+class Calibration;
 
 class Motor {
   private:
-    RobotTimer* stopTimer;
+    RobotTimer* stopTimer = NULL;
+    MotorPosition position = MOTOR_POS_UNSET;
     unsigned int speed = 0;
     unsigned int directionPin;
     unsigned int brakePin;
@@ -32,7 +42,6 @@ class Motor {
     bool turning = false;
     bool reversed;
     bool stateChange = false;
-    bool movingForDistance = false;
     MotorState currentState;
 
     typedef void (RobotController::*CallbackType)(void);
@@ -45,7 +54,8 @@ class Motor {
   public:
     Calibration *calibration = NULL;
 
-    Motor(unsigned int directionPin, unsigned int brakePin, unsigned int speedPin, bool reversed);
+    Motor(unsigned int directionPin, unsigned int brakePin, unsigned int speedPin,
+          bool reversed, MotorPosition position);
     void process();
 
     void setStateCallback(RobotController* parent, CallbackType callbackFunc);

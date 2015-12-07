@@ -43,6 +43,7 @@ class RobotController {
     void motorsSetDistance(char *arg, DistanceUnit unit);
     void calibrateTurning(unsigned int turnTimeMs);
     void calibrateSpeed(unsigned int extraSpeedRight, unsigned int extraSpeedLeft);
+    void calibrateFriction(unsigned int friction);
 
     Calibration* getCalibration(bool left);
     unsigned int getSpeed();

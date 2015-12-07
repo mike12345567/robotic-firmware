@@ -7,7 +7,8 @@ StorageController::StorageController() {
 
 unsigned int StorageController::getStorageSize(StorageType type) {
   switch (type) {
-    case STORAGE_TYPE_CAL_LEFT: case STORAGE_TYPE_CAL_RIGHT: case STORAGE_TYPE_CAL_TURN:
+    case STORAGE_TYPE_CAL_LEFT_FWD: case STORAGE_TYPE_CAL_RIGHT_FWD: case STORAGE_TYPE_CAL_TURN:
+    case STORAGE_TYPE_CAL_FRICTION:
       return CALIBRATION;
       break;
   }

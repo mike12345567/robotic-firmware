@@ -1,27 +1,28 @@
 #include "Motor.h"
 #include "RoboticFirmware.h"
+#include "Calibration.h"
 #include <math.h>
 
 #define MINIMUM_SPEED 80
-#define MINIMUM_TURN_SPEED 170
+#define MINIMUM_TURN_SPEED DEFAULT_MOTOR_SPEED + 40
 #define MAXIMUM_SPEED 255
 #define WHEEL_DIAMETER_MM 65
 #define NO_LOAD_MOTOR_RPM 140
-#define FRICTION_CALIBRATION 1.4
 #define MINIMUM_FRIC_CALIB 0.8
 #define SMALL_TURN_LOW_SPEED 1.15
 #define LOW_TURN_SPEED 220
 #define SMALL_TURN_ANGLE 90
 
 Motor::Motor(unsigned int directionPin, unsigned int brakePin,
-             unsigned int speedPin, bool reversed) {
-  this->stopTimer = new RobotTimer();
+             unsigned int speedPin, bool reversed, MotorPosition position) {
+  this->position = position;
+  this->stopTimer = new RobotTimer(false);
   this->directionPin = directionPin;
   this->brakePin = brakePin;
   this->speedPin = speedPin;
   this->reversed = reversed;
   this->currentState = STOPPED;
-  this->calibration = new Calibration();
+  this->calibration = new Calibration(this->position);
 
   pinMode(this->directionPin, OUTPUT);
   pinMode(this->brakePin, OUTPUT);
@@ -31,11 +32,18 @@ Motor::Motor(unsigned int directionPin, unsigned int brakePin,
 void Motor::process() {
   if (this->stateChange) {
 #ifndef NO_MOVEMENT
-    unsigned int trueSpeed = this->speed;
+    unsigned int trueFwdSpeed = this->speed;
+    unsigned int trueBackSpeed = this->speed;
     if (!turning) {
-      trueSpeed += calibration->getSpeedCalibration();
-    } else if (trueSpeed < MINIMUM_TURN_SPEED) {
-      trueSpeed = MINIMUM_TURN_SPEED;
+      trueFwdSpeed += calibration->getFwdSpeedCalibration();
+      trueBackSpeed += calibration->getBackSpeedCalibration();
+    } else {
+      if (trueFwdSpeed < MINIMUM_TURN_SPEED) {
+        trueFwdSpeed = MINIMUM_TURN_SPEED;
+      }
+      if (trueBackSpeed < MINIMUM_TURN_SPEED) {
+        trueBackSpeed = MINIMUM_TURN_SPEED;
+      }
     }
 
     switch (currentState) {
@@ -47,12 +55,12 @@ void Motor::process() {
       case FORWARD:
         digitalWrite(this->brakePin, LOW);
         digitalWrite(this->directionPin, reversed ? HIGH : LOW);
-        analogWrite(this->speedPin, trueSpeed);
+        analogWrite(this->speedPin, trueFwdSpeed);
         break;
       case BACKWARD:
         digitalWrite(this->brakePin, LOW);
         digitalWrite(this->directionPin, reversed ? LOW : HIGH);
-        analogWrite(this->speedPin, trueSpeed);
+        analogWrite(this->speedPin, trueBackSpeed);
         break;
     }
 #endif
@@ -84,6 +92,9 @@ void Motor::setStateCallback(RobotController* parent, CallbackType callbackFunc)
 }
 
 void Motor::setState(MotorState state) {
+  if (state == STOPPED) {
+    this->stopTimer->stop();
+  }
   this->currentState = state;
   stateChange = true;
 }
@@ -98,8 +109,9 @@ void Motor::moveForDistance(unsigned int distance, DistanceUnit unit) {
   if (turning && realSpeed < MINIMUM_TURN_SPEED) {
     realSpeed = MINIMUM_TURN_SPEED;
   }
+  unsigned int frictionCal = 1 + (double)(this->calibration->getFrictionCalibration() / 100);
   if (unit != DEGREES) {
-    double calibration = (double) FRICTION_CALIBRATION * ((double) MINIMUM_SPEED / realSpeed);
+    double calibration = frictionCal * ((double) MINIMUM_SPEED / realSpeed);
     if (calibration < MINIMUM_FRIC_CALIB) {
       calibration = MINIMUM_FRIC_CALIB;
     }
@@ -155,8 +167,17 @@ void Motor::outputSerial() {
   Serial.print("\tMotor speed -> ");
   Serial.println(speed);
 
-  Serial.print("\tMotor calibration -> ");
-  Serial.println(calibration->getSpeedCalibration());
+  Serial.print("\tMotor fwd calibration -> ");
+  Serial.println(calibration->getFwdSpeedCalibration());
+
+  Serial.print("\tMotor back calibration -> ");
+  Serial.println(calibration->getBackSpeedCalibration());
+
+  Serial.print("\tTurn calibration -> ");
+  Serial.println(calibration->getTurnCalibration());
+
+  Serial.print("\tFriction calibration -> ");
+  Serial.println(calibration->getFrictionCalibration());
 
   if (lastTravelTime) {
     Serial.print("\tMotor travel time (seconds) -> ");

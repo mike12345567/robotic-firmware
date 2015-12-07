@@ -9,12 +9,25 @@
 
 #define MAX_PUBLISH_BYTES 63
 #define DEFAULT_PUBLISH_TTL 60
+#define INTERVAL_TIMER_MS 5000
 
 static char packedBytes[MAX_PUBLISH_BYTES];
 static char publishArray[MAX_PUBLISH_BYTES];
 
+RobotTimer* PublishEvent::intervalTimer = NULL;
+
+void PublishEvent::Setup() {
+  PublishEvent::intervalTimer = new RobotTimer(true);
+  PublishEvent::intervalTimer->setDuration(INTERVAL_TIMER_MS, MILLISECONDS);
+  PublishEvent::intervalTimer->start();
+}
+
 void PublishEvent::PublishComplete() {
   Particle.publish("complete");
+}
+
+void PublishEvent::PublishStopped() {
+  Particle.publish("stopped");
 }
 
 void PublishEvent::PublishCalibration() {
@@ -22,18 +35,26 @@ void PublishEvent::PublishCalibration() {
   Calibration *rightCal = getRobotController()->getCalibration(false);
   unsigned int speed = getRobotController()->getSpeed();
   unsigned int turnCalibration = leftCal->getTurnCalibration();
-  unsigned int leftSpeedCal = leftCal->getSpeedCalibration();
-  unsigned int rightSpeedCal = rightCal->getSpeedCalibration();
+  unsigned int leftSpeedCal = leftCal->getFwdSpeedCalibration();
+  unsigned int rightSpeedCal = rightCal->getFwdSpeedCalibration();
+  unsigned int frictionCal = leftCal->getFrictionCalibration();
 
   unsigned int byteCount = PublishEvent::PackBytes(4, speed, rightSpeedCal,
-      leftSpeedCal, turnCalibration);
+      leftSpeedCal, turnCalibration, frictionCal);
+  PublishEvent::Publish("calibrationValues", byteCount);
+}
 
-  memset(&publishArray, 0, byteCount+1);
+void PublishEvent::PublishUltrasonic() {
+  unsigned int distance = getFrontUltrasonicSensor()->getDistanceCm();
 
-  int length = base64_enc_len(byteCount);
-  base64_encode(publishArray, packedBytes, byteCount);
+  unsigned int byteCount = PublishEvent::PackBytes(4, distance);
+  PublishEvent::Publish("distanceCm", byteCount);
+}
 
-  Particle.publish("calibrationValues", publishArray, DEFAULT_PUBLISH_TTL, PRIVATE);
+void PublishEvent::Process() {
+  if (PublishEvent::intervalTimer->isComplete()) {
+    PublishEvent::PublishUltrasonic();
+  }
 }
 
 unsigned int PublishEvent::PackBytes(int numberInts, ...) {
@@ -42,7 +63,7 @@ unsigned int PublishEvent::PackBytes(int numberInts, ...) {
 
   va_list ap;
   va_start(ap, numberInts);
-  for(int i = 1; i <= numberInts; i++) {
+  for(int i = 1; i <= numberInts+1; i++) {
     unsigned int integer = va_arg(ap, int);
     /* values no larger than 16 bits unsigned */
     packedBytes[byteCount++] = integer & 0xFF;
@@ -52,4 +73,13 @@ unsigned int PublishEvent::PackBytes(int numberInts, ...) {
   va_end(ap);
 
   return byteCount;
+}
+
+void PublishEvent::Publish(const char *url, unsigned int byteCount) {
+  memset(&publishArray, 0, byteCount+1);
+
+  base64_enc_len(byteCount);
+  base64_encode(publishArray, packedBytes, byteCount);
+
+  Particle.publish(url, publishArray, DEFAULT_PUBLISH_TTL, PRIVATE);
 }

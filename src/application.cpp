@@ -29,11 +29,12 @@ unsigned int nextStateChangeMs = 0;
 unsigned int lastStateChangeMs = 0;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   robotController = new RobotController();
   storageController = new StorageController();
   ultrasonicSensor = new UltrasonicSensor();
 
+  PublishEvent::Setup();
   Particle.function("makeMove", makeMove);
   serialTimer.start();
 }
@@ -48,6 +49,8 @@ void loop() {
     timer->process();
     iterator++;
   }
+
+  PublishEvent::Process();
 }
 
 /* TODO: Change this to something more meaningful */
@@ -58,6 +61,9 @@ int makeMove(String param) {
   // always one argument
   int argCount = 1;
   int argIndex = 0;
+
+  Serial.print("Event Received! -> ");
+  Serial.println(param);
 
   // get our c string out for usage later
   strcpy(cstring, param.c_str());
@@ -111,6 +117,11 @@ int makeMove(String param) {
       }
     } else if (strcmp("sendCalibration", args[0]) == 0 && argCount == 1) {
       PublishEvent::PublishCalibration();
+    } else if (strcmp("calibrateFriction", args[0]) == 0 && argCount == 2) {
+      unsigned int friction = strtoul(args[1], NULL, 10);
+      if (friction != UINTMAX_MAX) {
+        robotController->calibrateFriction(friction);
+      }
     }
 
     if (moving && argCount == 3) {

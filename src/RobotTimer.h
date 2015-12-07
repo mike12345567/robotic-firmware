@@ -12,11 +12,12 @@ class RobotTimer {
   private:
     bool started = false;
     bool complete = false;
+    bool repeating = false;
     unsigned int lengthMs = 0;
     unsigned int startTimeMs = 0;
 
   public:
-    RobotTimer();
+    RobotTimer(bool repeat);
     void process();
     void start();
     void stop();

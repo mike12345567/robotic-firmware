@@ -4,57 +4,26 @@
 #include "PinMapping.h"
 #include "PublishEvent.h"
 #include "StorageController.h"
+#include "Calibration.h"
 
 #include <cstring>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MOTOR_SPEED 128
-#define MOTOR_R_CALIBRATION 10
-#define MOTOR_L_CALIBRATION 0
-#define MOTOR_CALIBRATION_MAX 64
-#define DEFAULT_TURNING_CALIBRATION 2000
-#define MAX_TURNING_TIME_MS 25000
-#define BLOCKED_DISTANCE_CM 30
+#define BLOCKED_DISTANCE_CM 15
 
 RobotController::RobotController() {
   motorRight = new Motor(PinMapping::motorPinR, PinMapping::brakePinR,
-                         PinMapping::speedPinR, false);
-  motorRight->setSpeed(MOTOR_SPEED);
+                         PinMapping::speedPinR, false, MOTOR_POS_RIGHT);
+  motorRight->setSpeed(DEFAULT_MOTOR_SPEED);
   motorRight->setStateCallback(this, &RobotController::motorStateChange);
   motorLeft = new Motor(PinMapping::motorPinL, PinMapping::brakePinL,
-                        PinMapping::speedPinL, true);
-  motorLeft->setSpeed(MOTOR_SPEED);
+                        PinMapping::speedPinL, true, MOTOR_POS_LEFT);
+  motorLeft->setSpeed(DEFAULT_MOTOR_SPEED);
+  motorLeft->setStateCallback(this, &RobotController::motorStateChange);
 
-  unsigned int calibrationR = getStorageController()->readUnsignedInt(STORAGE_TYPE_CAL_RIGHT);
-#ifdef MOTOR_R_CALIBRATION
-  if (calibrationR == 0xFFFF || calibrationR > MOTOR_CALIBRATION_MAX) {
-    getStorageController()->writeUnsignedInt(STORAGE_TYPE_CAL_RIGHT, MOTOR_R_CALIBRATION);
-    calibrationR = MOTOR_R_CALIBRATION;
-  }
-#endif
-  unsigned int calibrationL = getStorageController()->readUnsignedInt(STORAGE_TYPE_CAL_LEFT);
-#ifdef MOTOR_L_CALIBRATION
-  if (calibrationL == 0xFFFF || calibrationL > MOTOR_CALIBRATION_MAX) {
-    getStorageController()->writeUnsignedInt(STORAGE_TYPE_CAL_LEFT, MOTOR_L_CALIBRATION);
-    calibrationL = MOTOR_L_CALIBRATION;
-  }
-#endif
-  unsigned int calibrationT = getStorageController()->readUnsignedInt(STORAGE_TYPE_CAL_TURN);
-#ifdef DEFAULT_TURNING_CALIBRATION
-  if (calibrationT == 0 || calibrationT > MAX_TURNING_TIME_MS) {
-    getStorageController()->writeUnsignedInt(STORAGE_TYPE_CAL_TURN, DEFAULT_TURNING_CALIBRATION);
-    calibrationT = DEFAULT_TURNING_CALIBRATION;
-  }
-#endif
-
-  motorRight->calibration->calibrateSpeed(calibrationR);
-  motorLeft->calibration->calibrateSpeed(calibrationL);
-  motorRight->calibration->calibrateTurning(calibrationT);
-  motorLeft->calibration->calibrateTurning(calibrationT);
-
-  speed = MOTOR_SPEED;
+  speed = DEFAULT_MOTOR_SPEED;
 }
 
 void RobotController::process() {
@@ -64,22 +33,24 @@ void RobotController::process() {
   unsigned int distanceCm = getFrontUltrasonicSensor()->getDistanceCm();
 
   if (distanceCm < BLOCKED_DISTANCE_CM &&
-      this->state != ROBOT_STOPPED) {
-    stateBeforeStop = state;
+      this->state != ROBOT_STOPPED &&
+      this->state != ROBOT_BACKWARD) {
     changeState(ROBOT_STOPPED);
-    notify(ROBOT_REASON_STOP);
+    PublishEvent::PublishStopped();
   }
 
-  if (stateBeforeStop != ROBOT_NO_STATE &&
-      distanceCm > BLOCKED_DISTANCE_CM) {
-    changeState(stateBeforeStop);
-    stateBeforeStop = ROBOT_NO_STATE;
-    notify(ROBOT_REASON_CONTINUING);
-  }
+//  if (stateBeforeStop != ROBOT_NO_STATE &&
+//      distanceCm > BLOCKED_DISTANCE_CM) {
+//    changeState(stateBeforeStop);
+//    stateBeforeStop = ROBOT_NO_STATE;
+//    notify(ROBOT_REASON_CONTINUING);
+//  }
 }
 
 void RobotController::notify(RobotNotifyReason reason) {
-
+  if (ROBOT_REASON_STOP) {
+    PublishEvent::PublishStopped();
+  }
 }
 
 void RobotController::motorsSetDistance(char *arg, DistanceUnit unit) {
@@ -92,7 +63,8 @@ void RobotController::motorsSetDistance(char *arg, DistanceUnit unit) {
 void RobotController::changeState(RobotState newState) {
   Serial.print("CHANGING STATE -> ");
   Serial.println(robotStateToString(newState));
-  if (stateBeforeStop != ROBOT_NO_STATE && newState == ROBOT_STOPPED) {
+  if (stateBeforeStop != ROBOT_NO_STATE &&
+     (newState == ROBOT_STOPPED || newState == ROBOT_BACKWARD)) {
     stateBeforeStop = ROBOT_NO_STATE;
   }
 
@@ -106,6 +78,9 @@ void RobotController::changeState(RobotState newState) {
     case ROBOT_STOPPED:
       motorRight->setState(STOPPED);
       motorLeft->setState(STOPPED);
+      if (movingForDistance) {
+        movingForDistance = false;
+      }
       break;
     case ROBOT_FORWARD:
       motorRight->setState(FORWARD);
@@ -135,22 +110,19 @@ void RobotController::setRobotSpeed(unsigned int speed) {
 }
 
 void RobotController::calibrateTurning(unsigned int turnTimeMs) {
-  turnTimeMs = turnTimeMs > MAX_TURNING_TIME_MS ? MAX_TURNING_TIME_MS : turnTimeMs;
   motorRight->calibration->calibrateTurning(turnTimeMs);
   motorLeft->calibration->calibrateTurning(turnTimeMs);
-  getStorageController()->writeUnsignedInt(STORAGE_TYPE_CAL_TURN, turnTimeMs);
 }
 
 void RobotController::calibrateSpeed(unsigned int extraSpeedRight,
                                      unsigned int extraSpeedLeft) {
-  extraSpeedRight = extraSpeedRight > MOTOR_CALIBRATION_MAX ?
-      MOTOR_CALIBRATION_MAX : extraSpeedRight;
-  extraSpeedLeft = extraSpeedLeft > MOTOR_CALIBRATION_MAX ?
-      MOTOR_CALIBRATION_MAX : extraSpeedLeft;
-  motorRight->calibration->calibrateSpeed(extraSpeedRight);
-  getStorageController()->writeUnsignedInt(STORAGE_TYPE_CAL_RIGHT, extraSpeedRight);
-  motorLeft->calibration->calibrateSpeed(extraSpeedLeft);
-  getStorageController()->writeUnsignedInt(STORAGE_TYPE_CAL_LEFT, extraSpeedLeft);
+  motorRight->calibration->calibrateSpeed(extraSpeedRight, extraSpeedLeft);
+  motorLeft->calibration->calibrateSpeed(extraSpeedLeft, extraSpeedRight);
+}
+
+void RobotController::calibrateFriction(unsigned int friction) {
+  motorRight->calibration->calibrateFriction(friction);
+  motorLeft->calibration->calibrateFriction(friction);
 }
 
 Calibration* RobotController::getCalibration(bool left) {
@@ -196,6 +168,10 @@ const char* RobotController::robotStateToString(RobotState state) {
 
 void RobotController::outputSerial() {
   Serial.println("ROBOT STATE");
+
+  Serial.print("Currently blocked -> ");
+  Serial.println(stateBeforeStop != ROBOT_NO_STATE ? "YES" : "NO");
+
   Serial.print("\tCurrent -> ");
   Serial.println(robotStateToString(state));
 
@@ -203,9 +179,5 @@ void RobotController::outputSerial() {
   motorRight->outputSerial();
   Serial.println("MOTOR B");
   motorLeft->outputSerial();
-
-  if (stateBeforeStop != ROBOT_NO_STATE) {
-    Serial.println("Currently blocked");
-  }
 }
 

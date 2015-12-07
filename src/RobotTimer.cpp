@@ -1,8 +1,9 @@
 #include "RobotTimer.h"
 #include "RoboticFirmware.h"
 
-RobotTimer::RobotTimer() {
+RobotTimer::RobotTimer(bool repeat) {
   addRobotTimer(this);
+  this->repeating = repeat;
 }
 
 void RobotTimer::start() {
@@ -43,6 +44,9 @@ bool RobotTimer::isComplete() {
   bool returnComplete = complete;
   if (complete) {
     complete = false;
+    if (repeating) {
+      this->start();
+    }
   }
 
   return returnComplete;

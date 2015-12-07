@@ -14,6 +14,7 @@ class UltrasonicSensor {
     samplesQueue rawQueue;
 
     unsigned int getRawDistance();
+    bool checkValueConsitent(unsigned int value);
   public:
     UltrasonicSensor();
     void process();
