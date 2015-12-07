@@ -13,7 +13,8 @@ Current Inventory
 =================
 
 Currently the following items are 'in stock' (can be used):
-** 1 x Dagu 2WD chassis
+* 1 x Dagu 2WD chassis
+* esf
 * 1 x 6 battery pack (AA)
 * 32 x AA batteries
 * 3 x Arduino Motor Shields
