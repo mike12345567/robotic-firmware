@@ -8,3 +8,20 @@ The Dagu 2WD robotic kit has been been used as a chassis, along with a 6AA batte
 two 4.5V motors require.
 
 One 6dB 2.4GHz omni directional antenna has been attached to improve WiFi connection, using the u.FL connector on the Photon.
+
+Current Inventory
+=================
+
+Currently the following items are 'in stock' (can be used):
+1. 1 x Dagu 2WD chassis
+2. 1 x 6 battery pack (AA)
+3. 32 x AA batteries
+4. 3 x Arduino Motor Shields
+5. 2 x Photon Shield Shields
+6. 3 x Photons
+7. 1 x SR 04 USonic Sensor
+8. 1 x MPU 6050 accelerometer
+9. 30 x male to male jumper cables
+10. 2 x breadboards
+11. 1 x SMA Antenna (2.4GHz)
+12. 1 x u.FL to SMA cable
