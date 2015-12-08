@@ -12,6 +12,7 @@
 #define SMALL_TURN_LOW_SPEED 1.15
 #define LOW_TURN_SPEED 220
 #define SMALL_TURN_ANGLE 90
+#define CLEANUP_TIME_TURN_MS 500
 
 Motor::Motor(unsigned int directionPin, unsigned int brakePin,
              unsigned int speedPin, bool reversed, MotorPosition position) {
@@ -32,47 +33,60 @@ Motor::Motor(unsigned int directionPin, unsigned int brakePin,
 void Motor::process() {
   if (this->stateChange) {
 #ifndef NO_MOVEMENT
-    unsigned int trueFwdSpeed = this->speed;
-    unsigned int trueBackSpeed = this->speed;
-    if (!turning) {
-      trueFwdSpeed += calibration->getFwdSpeedCalibration();
-      trueBackSpeed += calibration->getBackSpeedCalibration();
+    if (currentState == CLEANUP) {
+      casterCleanup();
     } else {
-      if (trueFwdSpeed < MINIMUM_TURN_SPEED) {
-        trueFwdSpeed = MINIMUM_TURN_SPEED;
-      }
-      if (trueBackSpeed < MINIMUM_TURN_SPEED) {
-        trueBackSpeed = MINIMUM_TURN_SPEED;
-      }
-    }
-
-    switch (currentState) {
-      case STOPPED:
-        digitalWrite(this->brakePin, HIGH);
-        digitalWrite(this->directionPin, LOW);
-        analogWrite(this->speedPin, 0);
-        break;
-      case FORWARD:
-        digitalWrite(this->brakePin, LOW);
-        digitalWrite(this->directionPin, reversed ? HIGH : LOW);
-        analogWrite(this->speedPin, trueFwdSpeed);
-        break;
-      case BACKWARD:
-        digitalWrite(this->brakePin, LOW);
-        digitalWrite(this->directionPin, reversed ? LOW : HIGH);
-        analogWrite(this->speedPin, trueBackSpeed);
-        break;
+      pinOut(currentState, turning);
     }
 #endif
     stateChange = false;
   }
 
   if (currentState != STOPPED && stopTimer->isComplete()) {
-    setState(STOPPED);
-    stopTimer->stop();
-    if (parent != NULL && callback != NULL) {
-      (parent->*callback)();
+    if (currentState == CLEANUP && !cleanOtherDirection) {
+      cleanOtherDirection = true;
+      casterCleanup();
+    } else {
+      setState(STOPPED);
+      stopTimer->stop();
+      if (parent != NULL && callback != NULL) {
+        (parent->*callback)();
+      }
     }
+  }
+}
+
+void Motor::pinOut(MotorState state, bool turning) {
+  unsigned int trueFwdSpeed = this->speed;
+  unsigned int trueBackSpeed = this->speed;
+  if (!turning) {
+    trueFwdSpeed += calibration->getFwdSpeedCalibration();
+    trueBackSpeed += calibration->getBackSpeedCalibration();
+  } else {
+    if (trueFwdSpeed < MINIMUM_TURN_SPEED) {
+      trueFwdSpeed = MINIMUM_TURN_SPEED;
+    }
+    if (trueBackSpeed < MINIMUM_TURN_SPEED) {
+      trueBackSpeed = MINIMUM_TURN_SPEED;
+    }
+  }
+
+  switch (state) {
+    case STOPPED:
+      digitalWrite(this->brakePin, HIGH);
+      digitalWrite(this->directionPin, LOW);
+      analogWrite(this->speedPin, 0);
+      break;
+    case FORWARD:
+      digitalWrite(this->brakePin, LOW);
+      digitalWrite(this->directionPin, reversed ? HIGH : LOW);
+      analogWrite(this->speedPin, trueFwdSpeed);
+      break;
+    case BACKWARD:
+      digitalWrite(this->brakePin, LOW);
+      digitalWrite(this->directionPin, reversed ? LOW : HIGH);
+      analogWrite(this->speedPin, trueBackSpeed);
+      break;
   }
 }
 
@@ -86,6 +100,19 @@ void Motor::setSpeed(unsigned int speed) {
   }
 }
 
+void Motor::casterCleanup() {
+  unsigned int durationMs = CLEANUP_TIME_TURN_MS;
+
+  pinOut((position == MOTOR_POS_RIGHT && !cleanOtherDirection) ||
+         (position == MOTOR_POS_LEFT && cleanOtherDirection) ?
+             FORWARD : STOPPED, true);
+
+  if (durationMs != 0) {
+    stopTimer->setDuration(durationMs, MILLISECONDS);
+    stopTimer->start();
+  }
+}
+
 void Motor::setStateCallback(RobotController* parent, CallbackType callbackFunc) {
   this->parent = parent;
   this->callback = callbackFunc;
@@ -93,9 +120,11 @@ void Motor::setStateCallback(RobotController* parent, CallbackType callbackFunc)
 
 void Motor::setState(MotorState state) {
   if (state == STOPPED) {
-    this->stopTimer->stop();
+    stopTimer->stop();
   }
-  this->currentState = state;
+  cleanOtherDirection = false;
+  currentState = state;
+  Serial.println(stateToString());
   stateChange = true;
 }
 
@@ -151,6 +180,8 @@ const char* Motor::stateToString() {
       return "FORWARD";
     case BACKWARD:
       return "BACKWARD";
+    case CLEANUP:
+      return "CLEANUP";
   }
   return "UNKNOWN";
 }
@@ -178,6 +209,9 @@ void Motor::outputSerial() {
 
   Serial.print("\tFriction calibration -> ");
   Serial.println(calibration->getFrictionCalibration());
+
+  Serial.print("\tCurrently turning -> ");
+  Serial.println(turning ? "YES" : "NO");
 
   if (lastTravelTime) {
     Serial.print("\tMotor travel time (seconds) -> ");

@@ -5,6 +5,7 @@
 #include "PublishEvent.h"
 #include "StorageController.h"
 #include "UltrasonicSensor.h"
+#include "Gyroscope.h"
 
 #include <cstring>
 #include <string.h>
@@ -18,6 +19,7 @@ std::vector<RobotTimer*> robotTimers;
 RobotController* robotController = NULL;
 StorageController* storageController = NULL;
 UltrasonicSensor* ultrasonicSensor = NULL;
+Gyroscope* gyroscope = NULL;
 
 STARTUP(WiFi.selectAntenna(ANT_AUTO));
 SYSTEM_MODE(AUTOMATIC);
@@ -32,7 +34,8 @@ void setup() {
   Serial.begin(115200);
   robotController = new RobotController();
   storageController = new StorageController();
-  ultrasonicSensor = new UltrasonicSensor();
+  ultrasonicSensor = new UltrasonicSensor(US_POSITION_FRONT);
+  gyroscope = new Gyroscope();
 
   PublishEvent::Setup();
   Particle.function("makeMove", makeMove);
@@ -42,6 +45,7 @@ void setup() {
 void loop() {
   auto iterator = robotTimers.begin();
   ultrasonicSensor->process();
+  gyroscope->process();
   robotController->process();
 
   while (iterator != robotTimers.end()) {
@@ -116,7 +120,7 @@ int makeMove(String param) {
         robotController->calibrateSpeed(rightCal, leftCal);
       }
     } else if (strcmp("sendCalibration", args[0]) == 0 && argCount == 1) {
-      PublishEvent::PublishCalibration();
+      PublishEvent::QueueEvent(PUBLISH_EVENT_CALIBRATION);
     } else if (strcmp("calibrateFriction", args[0]) == 0 && argCount == 2) {
       unsigned int friction = strtoul(args[1], NULL, 10);
       if (friction != UINTMAX_MAX) {
@@ -152,6 +156,10 @@ UltrasonicSensor* getFrontUltrasonicSensor() {
   return ultrasonicSensor;
 }
 
+Gyroscope* getGyroscope() {
+  return gyroscope;
+}
+
 DistanceUnit getDistanceUnitFromArg(char *arg) {
   if (strcmp("mm", arg) == 0) {
     return MM;
@@ -167,14 +175,15 @@ DistanceUnit getDistanceUnitFromArg(char *arg) {
 
 void serialOutput() {
   // Clear screen & home
-  Serial.write(27);
-  Serial.print("[2J");
-  Serial.write(27);
-  Serial.print("[H");
-
-  Serial.println("Robotic Firmware - 2015 - Michael Drury\n");
-
-  robotController->outputSerial();
-  Serial.println("\n");
-  ultrasonicSensor->outputSerial();
+//  Serial.write(27);
+//  Serial.print("[2J");
+//  Serial.write(27);
+//  Serial.print("[H");
+//
+//  Serial.println("Robotic Firmware - 2015 - Michael Drury\n");
+//
+//  robotController->outputSerial();
+//  Serial.println("\n");
+//  ultrasonicSensor->outputSerial();
+//  gyroscope->outputSerial();
 }

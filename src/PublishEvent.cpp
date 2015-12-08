@@ -2,24 +2,42 @@
 #include "RobotController.h"
 #include "application.h"
 #include "Calibration.h"
+#include "Gyroscope.h"
 #include "RoboticFirmware.h"
 #include "libraries/Base64.h"
 
-#include<stdarg.h>
+#include <stdarg.h>
 
 #define MAX_PUBLISH_BYTES 63
 #define DEFAULT_PUBLISH_TTL 60
 #define INTERVAL_TIMER_MS 5000
+#define QUEUE_EMPTY_RATE_MS 300
 
 static char packedBytes[MAX_PUBLISH_BYTES];
 static char publishArray[MAX_PUBLISH_BYTES];
 
 RobotTimer* PublishEvent::intervalTimer = NULL;
+RobotTimer* PublishEvent::queueEmptyTimer = NULL;
+publishQueue PublishEvent::events;
 
 void PublishEvent::Setup() {
   PublishEvent::intervalTimer = new RobotTimer(true);
   PublishEvent::intervalTimer->setDuration(INTERVAL_TIMER_MS, MILLISECONDS);
   PublishEvent::intervalTimer->start();
+
+  PublishEvent::queueEmptyTimer = new RobotTimer(true);
+  PublishEvent::queueEmptyTimer->setDuration(QUEUE_EMPTY_RATE_MS, MILLISECONDS);
+  PublishEvent::queueEmptyTimer->start();
+}
+
+void PublishEvent::QueueEvent(PublishEvents event) {
+  auto iterator = PublishEvent::events.begin();
+  for (auto iterator = PublishEvent::events.begin();
+       iterator != PublishEvent::events.end(); iterator++) {
+    if (*iterator == event)
+      return;
+  }
+  PublishEvent::events.push_back(event);
 }
 
 void PublishEvent::PublishComplete() {
@@ -28,6 +46,10 @@ void PublishEvent::PublishComplete() {
 
 void PublishEvent::PublishStopped() {
   Particle.publish("stopped");
+}
+
+void PublishEvent::PublishFailed() {
+  Particle.publish("failed");
 }
 
 void PublishEvent::PublishCalibration() {
@@ -39,36 +61,90 @@ void PublishEvent::PublishCalibration() {
   unsigned int rightSpeedCal = rightCal->getFwdSpeedCalibration();
   unsigned int frictionCal = leftCal->getFrictionCalibration();
 
-  unsigned int byteCount = PublishEvent::PackBytes(4, speed, rightSpeedCal,
-      leftSpeedCal, turnCalibration, frictionCal);
+  unsigned int byteCount = PublishEvent::PackBytes(4, false,
+      speed, rightSpeedCal, leftSpeedCal, turnCalibration, frictionCal);
   PublishEvent::Publish("calibrationValues", byteCount);
 }
 
 void PublishEvent::PublishUltrasonic() {
   unsigned int distance = getFrontUltrasonicSensor()->getDistanceCm();
 
-  unsigned int byteCount = PublishEvent::PackBytes(4, distance);
+  unsigned int byteCount = PublishEvent::PackBytes(4, false, distance);
   PublishEvent::Publish("distanceCm", byteCount);
+}
+
+void PublishEvent::PublishGyroscope() {
+  GyroscopeReadings* readings = getGyroscope()->getCurrentReadings();
+
+  unsigned int byteCount = PublishEvent::PackBytes(6, true,
+      readings->accelX, readings->accelY, readings->accelZ,
+      readings->gyroX, readings->gyroY, readings->gyroZ);
+  PublishEvent::Publish("gyroscopeReadings", byteCount);
+}
+
+void PublishEvent::PublishIntervalBased() {
+  PublishEvent::QueueEvent(PUBLISH_EVENT_ULTRASONIC);
+  PublishEvent::QueueEvent(PUBLISH_EVENT_GYROSCOPE);
 }
 
 void PublishEvent::Process() {
   if (PublishEvent::intervalTimer->isComplete()) {
-    PublishEvent::PublishUltrasonic();
+    PublishEvent::PublishIntervalBased();
+  }
+
+  if (PublishEvent::queueEmptyTimer->isComplete()) {
+    PublishEvent::PublishFromQueue();
   }
 }
 
-unsigned int PublishEvent::PackBytes(int numberInts, ...) {
+void PublishEvent::PublishFromQueue() {
+  if (events.empty()) {
+    return;
+  }
+  PublishEvents event = events.front();
+  events.pop_front();
+  Serial.println("EVENT OCCURRED!");
+
+  switch (event) {
+    case PUBLISH_EVENT_COMPLETE:
+      PublishEvent::PublishComplete();
+      break;
+    case PUBLISH_EVENT_STOP:
+      PublishEvent::PublishStopped();
+      break;
+    case PUBLISH_EVENT_FAIL:
+      PublishEvent::PublishFailed();
+      break;
+    case PUBLISH_EVENT_GYROSCOPE:
+      PublishEvent::PublishGyroscope();
+      break;
+    case PUBLISH_EVENT_ULTRASONIC:
+      PublishEvent::PublishUltrasonic();
+      break;
+    case PUBLISH_EVENT_CALIBRATION:
+      PublishEvent::PublishCalibration();
+      break;
+  }
+}
+
+unsigned int PublishEvent::PackBytes(int numberInts, bool sign, ...) {
   memset(&packedBytes, 0, sizeof(packedBytes));
   unsigned int byteCount = 0;
 
   va_list ap;
   va_start(ap, numberInts);
-  for(int i = 1; i <= numberInts+1; i++) {
-    unsigned int integer = va_arg(ap, int);
-    /* values no larger than 16 bits unsigned */
-    packedBytes[byteCount++] = integer & 0xFF;
-    packedBytes[byteCount++] = (integer >> 8) & 0xFF;
-
+  for(int i = 2; i <= numberInts+2; i++) {
+    if (!sign) {
+      unsigned int integer = va_arg(ap, unsigned int);
+      /* values no larger than 16 bits unsigned */
+      packedBytes[byteCount++] = integer & 0xFF;
+      packedBytes[byteCount++] = (integer >> 8) & 0xFF;
+    } else {
+      int integer = va_arg(ap, int);
+      /* values no larger than 16 bits signed */
+      packedBytes[byteCount++] = integer & 0xFF;
+      packedBytes[byteCount++] = (integer >> 8) & 0xFF;
+    }
   }
   va_end(ap);
 

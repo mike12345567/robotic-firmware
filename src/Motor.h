@@ -11,6 +11,7 @@ enum MotorState {
   FORWARD,
   BACKWARD,
   STOPPED,
+  CLEANUP,
 };
 
 enum DistanceUnit {
@@ -37,6 +38,7 @@ class Motor {
     unsigned int directionPin;
     unsigned int brakePin;
     unsigned int speedPin;
+    bool cleanOtherDirection = false;
 
     unsigned int lastTravelTime = 0;
     bool turning = false;
@@ -50,7 +52,8 @@ class Motor {
 
     double calculateSurfaceSpeed(unsigned int speed);
     const char* stateToString();
-
+    void casterCleanup();
+    void pinOut(MotorState state, bool turning);
   public:
     Calibration *calibration = NULL;
 

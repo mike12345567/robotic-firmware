@@ -3,6 +3,7 @@
 
 #include "application.h"
 #include "UltrasonicSensor.h"
+#include "Gyroscope.h"
 #include "Motor.h"
 #include "RobotTimer.h"
 #include <vector>
@@ -19,5 +20,6 @@ void publishComplete();
 RobotController* getRobotController();
 UltrasonicSensor* getFrontUltrasonicSensor();
 StorageController* getStorageController();
+Gyroscope* getGyroscope();
 
 #endif

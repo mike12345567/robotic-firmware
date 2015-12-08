@@ -1,13 +1,17 @@
 #include "UltrasonicSensor.h"
+#include "RobotController.h"
 #include "application.h"
 #include "PinMapping.h"
+#include "RoboticFirmware.h"
 
 #define HIGH_PULSE_LENGTH 10
 #define QUEUE_MAX_LENGTH 3
 #define SPEED_SOUND_MICROSECONDS_CM 29 // 340 m/s (29 us/cm)
 #define SPIKE_THRESHOLD 2.0
+#define BLOCKED_DISTANCE_CM 15
 
-UltrasonicSensor::UltrasonicSensor() {
+UltrasonicSensor::UltrasonicSensor(UltrasonicPosition position) {
+  this->position = position;
   this->echoPin = PinMapping::echoPin;
   this->triggerPin = PinMapping::triggerPin;
 
@@ -34,6 +38,11 @@ void UltrasonicSensor::process() {
   } else {
     rawQueue.push_back(duration);
     rawQueue.pop_front();
+  }
+
+  unsigned int distance = getDistanceCm();
+  if (distance < BLOCKED_DISTANCE_CM) {
+    getRobotController()->dangerClose(this->position, distance);
   }
 }
 

@@ -3,6 +3,7 @@
 
 #include "application.h"
 #include "Motor.h"
+#include "UltrasonicSensor.h"
 
 enum RobotState {
   ROBOT_TURNING_LEFT,
@@ -10,29 +11,24 @@ enum RobotState {
   ROBOT_FORWARD,
   ROBOT_STOPPED,
   ROBOT_BACKWARD,
+  ROBOT_CLEANUP,
   ROBOT_NO_STATE,
-};
-
-enum RobotNotifyReason {
-  ROBOT_REASON_STOP,
-  ROBOT_REASON_CONTINUING,
-  ROBOT_REASON_FAIL
 };
 
 class RobotController {
   private:
+    bool failed = false;
     unsigned int speed = 0;
-    RobotState state = ROBOT_NO_STATE;
-    RobotState stateBeforeStop = ROBOT_NO_STATE;
+    RobotState state = ROBOT_STOPPED;
     bool movingForDistance = false;
+    bool cleaningCaster = false;
 
     Motor* motorRight = NULL;
     Motor* motorLeft = NULL;
 
     void changeTurningState(bool turning);
     const char* robotStateToString(RobotState state);
-    void notify(RobotNotifyReason reason);
-
+    void setMotorStates(MotorState state);
   public:
     RobotController();
     void changeState(RobotState newState);
@@ -44,6 +40,9 @@ class RobotController {
     void calibrateTurning(unsigned int turnTimeMs);
     void calibrateSpeed(unsigned int extraSpeedRight, unsigned int extraSpeedLeft);
     void calibrateFriction(unsigned int friction);
+    void dangerClose(UltrasonicPosition position, unsigned int distanceCm);
+    void tiltOccurred(unsigned int x, unsigned int y);
+    bool cleaningUpCaster();
 
     Calibration* getCalibration(bool left);
     unsigned int getSpeed();
