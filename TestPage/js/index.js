@@ -4,12 +4,15 @@ var funcName = "makeMove";
 var rotationUnit = "degrees";
 var noSelected = "none";
 var waitForLift = false;
+var maxGyroRead = 22000;
 
 EventEnum = {
     COMPLETE : "complete",
     CALIBRATION_VALUES : "calibrationValues",
     ULTRASONIC_VALUES: "distanceCm",
     STOPPED : "stopped",
+    FAILED : "failed",
+    GYROSCOPE_READINGS : "gyroscopeReadings",
 }
 
 ButtonEnum = {
@@ -41,31 +44,39 @@ InputEnum = {
     CAL_TURNING : "turning-cal-input",
     CAL_FRICTION : "friction-input",
     DIST_FRONT : "dist-front-output",
+    GYRO_READ : "gyro-read-output",
     EVENTS : "event-area",
 }
 
 $(document).ready(function() {
     spark.login({accessToken: accessToken});
-    spark.getDevice(deviceID).then(function(device) {
-        device.onEvent(EventEnum.COMPLETE, function(data) {
-            changeButtons(false);
-            outputEvent(EventEnum.COMPLETE);
-        });
-        
-        device.onEvent(EventEnum.STOPPED, function(data) {
-            changeButtons(false);
-            outputEvent(EventEnum.STOPPED);
-        });
-        
-        device.onEvent(EventEnum.CALIBRATION_VALUES, function(data) {
-            var array = base64js.toByteArray(data.data);
-            outputCalibration(array);
-        });
-        
-        device.onEvent(EventEnum.ULTRASONIC_VALUES, function(data) {
-            var array = base64js.toByteArray(data.data);
-            outputDistances(array);
-        });
+    spark.getEventStream(false, deviceID, function(data) {
+        switch (data.name) {
+            case EventEnum.COMPLETE:
+                changeButtons(false);
+                outputEvent(EventEnum.COMPLETE);
+                break;
+            case EventEnum.STOPPED:
+                changeButtons(false);
+                outputEvent(EventEnum.STOPPED);
+                break;
+            case EventEnum.FAILED:
+                changeButtons(true);
+                outputEvent(EventEnum.FAILED);
+                break;
+            case EventEnum.CALIBRATION_VALUES:
+                var array = base64js.toByteArray(data.data);
+                outputCalibration(array);
+                break;
+            case EventEnum.ULTRASONIC_VALUES:
+                var array = base64js.toByteArray(data.data);
+                outputDistances(array);
+                break;
+            case EventEnum.GYROSCOPE_READINGS:
+                var array = base64js.toByteArray(data.data);
+                outputGyroReadings(array);
+                break;
+        }
     });
 
     setTimeout(getCalibrationValues, 1000);
@@ -128,7 +139,7 @@ $(document).ready(function() {
             waitForLift = true;
         });
     }
-    
+
     $(document).mouseup(function() {
         if (waitForLift) {
             particleCall("stop");
@@ -154,6 +165,26 @@ function outputCalibration(array) {
 function outputDistances(array){
     var value = array[0] | (array[1] << 8);
     setInput(InputEnum.DIST_FRONT, value.toString() + "cm");
+}
+
+function outputGyroReadings(array) {
+    var i = 0;
+    var ax = (array[i++] | (array[i++] << 8));
+    if (ax > maxGyroRead) ax -= 0x10000;
+    var ay = (array[i++] | (array[i++] << 8));
+    if (ay > maxGyroRead) ay -= 0x10000;
+    var az = (array[i++] | (array[i++] << 8));
+    if (az > maxGyroRead) az -= 0x10000;
+    var gx = (array[i++] | (array[i++] << 8));
+    if (gx > maxGyroRead) gx -= 0x10000;
+    var gy = (array[i++] | (array[i++] << 8));
+    if (gy > maxGyroRead) gy -= 0x10000;
+    var gz = (array[i++] | (array[i++] << 8));
+    if (gz > maxGyroRead) gz -= 0x10000;
+    
+    var output = "ax: " + ax.toString() + ", ay: " + ay.toString() + ", az: " + az.toString() +
+                        ", gx: " + gx.toString() + ", gy: " + gy.toString() + ", gz: " + gz.toString();
+    setInput(InputEnum.GYRO_READ, output);
 }
 
 function getCalibrationValues() {
