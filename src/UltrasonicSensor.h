@@ -4,8 +4,13 @@
 #include "MapHack.h"
 #include <deque>
 
+enum UltrasonicPosition {
+  US_POSITION_FRONT,
+};
+
 class UltrasonicSensor {
   private:
+    UltrasonicPosition position;
     unsigned int echoPin;
     unsigned int triggerPin;
     bool setupComplete = false;
@@ -16,7 +21,7 @@ class UltrasonicSensor {
     unsigned int getRawDistance();
     bool checkValueConsitent(unsigned int value);
   public:
-    UltrasonicSensor();
+    UltrasonicSensor(UltrasonicPosition position);
     void process();
     unsigned int getDistanceCm();
     void outputSerial();

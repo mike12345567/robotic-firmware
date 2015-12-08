@@ -11,8 +11,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define BLOCKED_DISTANCE_CM 15
-
 RobotController::RobotController() {
   motorRight = new Motor(PinMapping::motorPinR, PinMapping::brakePinR,
                          PinMapping::speedPinR, false, MOTOR_POS_RIGHT);
@@ -31,25 +29,25 @@ void RobotController::process() {
   motorLeft->process();
 
   unsigned int distanceCm = getFrontUltrasonicSensor()->getDistanceCm();
-
-  if (distanceCm < BLOCKED_DISTANCE_CM &&
-      this->state != ROBOT_STOPPED &&
-      this->state != ROBOT_BACKWARD) {
-    changeState(ROBOT_STOPPED);
-    PublishEvent::PublishStopped();
-  }
-
-//  if (stateBeforeStop != ROBOT_NO_STATE &&
-//      distanceCm > BLOCKED_DISTANCE_CM) {
-//    changeState(stateBeforeStop);
-//    stateBeforeStop = ROBOT_NO_STATE;
-//    notify(ROBOT_REASON_CONTINUING);
-//  }
 }
 
-void RobotController::notify(RobotNotifyReason reason) {
-  if (ROBOT_REASON_STOP) {
-    PublishEvent::PublishStopped();
+void RobotController::dangerClose(UltrasonicPosition position, unsigned int distance) {
+  if (position == US_POSITION_FRONT &&
+      this->state != ROBOT_STOPPED &&
+      this->state != ROBOT_BACKWARD) {
+    PublishEvent::QueueEvent(PUBLISH_EVENT_STOP);
+    changeState(ROBOT_STOPPED);
+  }
+}
+
+void RobotController::tiltOccurred(unsigned int x, unsigned int y) {
+  if (!failed) {
+  // In future this should kill the robot
+    PublishEvent::QueueEvent(PUBLISH_EVENT_FAIL);
+    failed = true;
+  }
+  if (this->state != ROBOT_STOPPED) {
+    changeState(ROBOT_STOPPED);
   }
 }
 
@@ -60,12 +58,18 @@ void RobotController::motorsSetDistance(char *arg, DistanceUnit unit) {
   movingForDistance = true;
 }
 
+void RobotController::setMotorStates(MotorState state) {
+  motorRight->setState(state);
+  motorLeft->setState(state);
+}
+
 void RobotController::changeState(RobotState newState) {
   Serial.print("CHANGING STATE -> ");
   Serial.println(robotStateToString(newState));
-  if (stateBeforeStop != ROBOT_NO_STATE &&
-     (newState == ROBOT_STOPPED || newState == ROBOT_BACKWARD)) {
-    stateBeforeStop = ROBOT_NO_STATE;
+
+  if (cleaningCaster) {
+    Serial.println("FAILED -> CLEANING CASTER");
+    return;
   }
 
   if (newState == ROBOT_TURNING_LEFT || newState == ROBOT_TURNING_RIGHT) {
@@ -76,15 +80,22 @@ void RobotController::changeState(RobotState newState) {
 
   switch (newState) {
     case ROBOT_STOPPED:
-      motorRight->setState(STOPPED);
-      motorLeft->setState(STOPPED);
+      if (state != ROBOT_FORWARD &&
+          state != ROBOT_STOPPED &&
+          state != ROBOT_CLEANUP &&
+          state != ROBOT_TURNING_RIGHT) {
+        setMotorStates(CLEANUP);
+        newState = ROBOT_CLEANUP;
+        cleaningCaster = true;
+      } else {
+        setMotorStates(STOPPED);
+      }
       if (movingForDistance) {
         movingForDistance = false;
       }
       break;
     case ROBOT_FORWARD:
-      motorRight->setState(FORWARD);
-      motorLeft->setState(FORWARD);
+      setMotorStates(FORWARD);
       break;
     case ROBOT_TURNING_LEFT:
       motorRight->setState(FORWARD);
@@ -95,8 +106,7 @@ void RobotController::changeState(RobotState newState) {
       motorLeft->setState(FORWARD);
       break;
     case ROBOT_BACKWARD:
-      motorRight->setState(BACKWARD);
-      motorLeft->setState(BACKWARD);
+      setMotorStates(BACKWARD);
       break;
   }
 
@@ -139,12 +149,21 @@ void RobotController::changeTurningState(bool turning) {
 }
 
 void RobotController::motorStateChange() {
-  if (movingForDistance && motorLeft->getState() == STOPPED &&
+  if (motorLeft->getState() == STOPPED &&
       motorRight->getState() == STOPPED) {
-    movingForDistance = false;
-    PublishEvent::PublishComplete();
+    if (movingForDistance) {
+      movingForDistance = false;
+      PublishEvent::QueueEvent(PUBLISH_EVENT_COMPLETE);
+    }
+    if (cleaningCaster) {
+      cleaningCaster = false;
+    }
     changeState(ROBOT_STOPPED);
   }
+}
+
+bool RobotController::cleaningUpCaster() {
+  return cleaningCaster;
 }
 
 const char* RobotController::robotStateToString(RobotState state) {
@@ -159,6 +178,8 @@ const char* RobotController::robotStateToString(RobotState state) {
       return "ROBOT_TURNING_RIGHT";
     case ROBOT_BACKWARD:
       return "ROBOT_BACKWARD";
+    case ROBOT_CLEANUP:
+      return "ROBOT_CLEANUP";
     case ROBOT_NO_STATE:
       return "ROBOT_NO_STATE";
   }
@@ -168,9 +189,6 @@ const char* RobotController::robotStateToString(RobotState state) {
 
 void RobotController::outputSerial() {
   Serial.println("ROBOT STATE");
-
-  Serial.print("Currently blocked -> ");
-  Serial.println(stateBeforeStop != ROBOT_NO_STATE ? "YES" : "NO");
 
   Serial.print("\tCurrent -> ");
   Serial.println(robotStateToString(state));

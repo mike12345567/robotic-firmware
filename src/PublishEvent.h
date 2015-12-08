@@ -3,21 +3,40 @@
 
 #include "application.h"
 #include "RobotTimer.h"
+#include "MapHack.h"
+#include <deque>
+
+enum PublishEvents {
+  PUBLISH_EVENT_COMPLETE = 1,
+  PUBLISH_EVENT_STOP = 2,
+  PUBLISH_EVENT_FAIL = 3,
+  PUBLISH_EVENT_CALIBRATION = 4,
+  PUBLISH_EVENT_ULTRASONIC = 5,
+  PUBLISH_EVENT_GYROSCOPE = 6
+};
+
+typedef std::deque<PublishEvents> publishQueue;
 
 class PublishEvent {
   private:
     static RobotTimer* intervalTimer;
+    static RobotTimer* queueEmptyTimer;
+    static publishQueue events;
 
-    static unsigned int PackBytes(int numberInts, ...);
-
-  public:
-    static void Setup();
+    static unsigned int PackBytes(int numberInts, bool sign, ...);
     static void PublishComplete();
     static void PublishStopped();
+    static void PublishFailed();
     static void PublishCalibration();
     static void PublishUltrasonic();
-    static void Process();
+    static void PublishGyroscope();
+    static void PublishIntervalBased();
+    static void PublishFromQueue();
     static void Publish(const char *url, unsigned int byteCount);
+  public:
+    static void Setup();
+    static void QueueEvent(PublishEvents event);
+    static void Process();
 };
 
 #endif
