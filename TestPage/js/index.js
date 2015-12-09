@@ -5,6 +5,7 @@ var rotationUnit = "degrees";
 var noSelected = "none";
 var waitForLift = false;
 var maxGyroRead = 22000;
+var wasFail = false;
 
 EventEnum = {
     COMPLETE : "complete",
@@ -12,6 +13,7 @@ EventEnum = {
     ULTRASONIC_VALUES: "distanceCm",
     STOPPED : "stopped",
     FAILED : "failed",
+    HAS_FAILED : "hasFailed",
     GYROSCOPE_READINGS : "gyroscopeReadings",
 }
 
@@ -24,7 +26,8 @@ ButtonEnum = {
     SEND_SPEED : {cmd: "setSpeed", btnName: "send-speed-btn"},
     CAL_TURNING : {cmd: "calibrateTurning", btnName: "cal-turning-btn"},
     CAL_WHEELS : {cmd: "calibrateSpeed", btnName: "cal-wheels-btn"},
-    CAL_FRICTION : {cmd: "calibrateFriction", btnName: "cal-friction-btn"}
+    CAL_FRICTION : {cmd: "calibrateFriction", btnName: "cal-friction-btn"},
+    RESET_FAIL : {cmd: "resetFailed", btnName: "cal-reset-fail-btn"},
 }
 
 JoystickEnum = {
@@ -61,8 +64,14 @@ $(document).ready(function() {
                 outputEvent(EventEnum.STOPPED);
                 break;
             case EventEnum.FAILED:
+                wasFail = true;
                 changeButtons(true);
                 outputEvent(EventEnum.FAILED);
+                break;
+            case EventEnum.HAS_FAILED:
+                wasFail = true;
+                changeButtons(true);
+                outputEvent(EventEnum.HAS_FAILED);
                 break;
             case EventEnum.CALIBRATION_VALUES:
                 var array = base64js.toByteArray(data.data);
@@ -125,6 +134,11 @@ $(document).ready(function() {
             }
             
             if (name == ButtonEnum.STOP.btnName) {
+                particleCall(getCmd(name));
+                changeButtons(false);
+            }
+            
+            if (name == ButtonEnum.RESET_FAIL.btnName) {
                 particleCall(getCmd(name));
                 changeButtons(false);
             }
@@ -210,10 +224,19 @@ function getCmd(btnName) {
 function changeButtons(disabled) {
     for (var btnEnumStr in ButtonEnum) {
         var button = ButtonEnum[btnEnumStr];
-        if (button.btnName == ButtonEnum.STOP.btnName) continue;
+        if (disabled && ((!wasFail && button.btnName == ButtonEnum.STOP.btnName) ||
+            (wasFail && button.btnName == ButtonEnum.RESET_FAIL.btnName))){
+            continue;
+        }
         
         $("#" + button.btnName).prop('disabled', disabled);
     }
+    
+    for (var joyEnumStr in JoystickEnum){
+        var button = JoystickEnum[joyEnumStr];
+        $("#" + button.btnName).prop('disabled', disabled);
+    }
+    wasFail = false;
 }
 
 function particleCall(cmd, parameters) {
