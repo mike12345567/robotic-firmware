@@ -121,11 +121,14 @@ int makeMove(String param) {
       }
     } else if (strcmp("sendCalibration", args[0]) == 0 && argCount == 1) {
       PublishEvent::QueueEvent(PUBLISH_EVENT_CALIBRATION);
+      PublishEvent::QueueEvent(PUBLISH_EVENT_HAS_FAILED);
     } else if (strcmp("calibrateFriction", args[0]) == 0 && argCount == 2) {
       unsigned int friction = strtoul(args[1], NULL, 10);
       if (friction != UINTMAX_MAX) {
         robotController->calibrateFriction(friction);
       }
+    } else if (strcmp("resetFailed", args[0]) == 0 && argCount == 1) {
+      robotController->resetFailed();
     }
 
     if (moving && argCount == 3) {
@@ -175,15 +178,15 @@ DistanceUnit getDistanceUnitFromArg(char *arg) {
 
 void serialOutput() {
   // Clear screen & home
-//  Serial.write(27);
-//  Serial.print("[2J");
-//  Serial.write(27);
-//  Serial.print("[H");
-//
-//  Serial.println("Robotic Firmware - 2015 - Michael Drury\n");
-//
-//  robotController->outputSerial();
-//  Serial.println("\n");
-//  ultrasonicSensor->outputSerial();
-//  gyroscope->outputSerial();
+  Serial.write(27);
+  Serial.print("[2J");
+  Serial.write(27);
+  Serial.print("[H");
+
+  Serial.println("Robotic Firmware - 2015 - Michael Drury\n");
+
+  robotController->outputSerial();
+  Serial.println("\n");
+  ultrasonicSensor->outputSerial();
+  gyroscope->outputSerial();
 }

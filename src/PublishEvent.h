@@ -12,7 +12,8 @@ enum PublishEvents {
   PUBLISH_EVENT_FAIL = 3,
   PUBLISH_EVENT_CALIBRATION = 4,
   PUBLISH_EVENT_ULTRASONIC = 5,
-  PUBLISH_EVENT_GYROSCOPE = 6
+  PUBLISH_EVENT_GYROSCOPE = 6,
+  PUBLISH_EVENT_HAS_FAILED = 7
 };
 
 typedef std::deque<PublishEvents> publishQueue;
@@ -27,6 +28,7 @@ class PublishEvent {
     static void PublishComplete();
     static void PublishStopped();
     static void PublishFailed();
+    static void PublishHasFailed();
     static void PublishCalibration();
     static void PublishUltrasonic();
     static void PublishGyroscope();
