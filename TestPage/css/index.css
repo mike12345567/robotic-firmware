@@ -27,7 +27,6 @@ h4 {
 }
 
 #right-div {
-  width: 33%;
 }
 
 #right-div span {
@@ -47,7 +46,6 @@ h4 {
 
 #left-div {
     text-align: center;
-    width: 33%;
 }
 
 .btn {
@@ -58,7 +56,6 @@ h4 {
 
 #joystick-div {
   text-align: center;
-  margin-left: 40px;
 }
 
 #joystick-div button {
@@ -67,19 +64,27 @@ h4 {
 
 .text-output-area {
   margin-top: 20px;
-  width: 400px;
+  width: 370px;
   clear: both;
   margin-bottom: 25px;
 }
 
+.text-input-area {
+  margin-top: 20px;
+  width: 300px;
+  clear: both;
+  margin-bottom: 25px;
+}
+
+
 @media only screen 
 and (min-device-width : 1000px)  {
   .text-input-area {
-    margin-left: 23%;
+    margin-left:  12%;
   }
   
   .text-output-area {
-    margin-left: 14%;
+    margin-left: 13px;
   }
   
   #right-div {
@@ -88,7 +93,7 @@ and (min-device-width : 1000px)  {
   }
   
   #right-div h4 {
-    margin-left: 45%;
+    margin-left: 40%;
   }
   
   .main-form {
@@ -120,11 +125,4 @@ width: 500px;
   .panel-heading {
     width: 398px !important;
   }
-}
-
-.text-input-area {
-  margin-top: 20px;
-  width: 300px;
-  clear: both;
-  margin-bottom: 25px;
 }
