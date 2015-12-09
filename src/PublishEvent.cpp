@@ -52,6 +52,12 @@ void PublishEvent::PublishFailed() {
   Particle.publish("failed");
 }
 
+void PublishEvent::PublishHasFailed() {
+  if (getRobotController()->hasFailed()) {
+    Particle.publish("hasFailed");
+  }
+}
+
 void PublishEvent::PublishCalibration() {
   Calibration *leftCal = getRobotController()->getCalibration(true);
   Calibration *rightCal = getRobotController()->getCalibration(false);
@@ -123,6 +129,9 @@ void PublishEvent::PublishFromQueue() {
       break;
     case PUBLISH_EVENT_CALIBRATION:
       PublishEvent::PublishCalibration();
+      break;
+    case PUBLISH_EVENT_HAS_FAILED:
+      PublishEvent::PublishHasFailed();
       break;
   }
 }

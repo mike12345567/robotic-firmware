@@ -51,6 +51,10 @@ void RobotController::tiltOccurred(unsigned int x, unsigned int y) {
   }
 }
 
+void RobotController::resetFailed() {
+  this->failed = false;
+}
+
 void RobotController::motorsSetDistance(char *arg, DistanceUnit unit) {
   unsigned int distance = strtoul(arg, NULL, 10);
   motorRight->moveForDistance(distance, unit);
@@ -141,6 +145,11 @@ Calibration* RobotController::getCalibration(bool left) {
 
 unsigned int RobotController::getSpeed() {
   return speed;
+}
+
+
+bool RobotController::hasFailed() {
+  return failed;
 }
 
 void RobotController::changeTurningState(bool turning) {

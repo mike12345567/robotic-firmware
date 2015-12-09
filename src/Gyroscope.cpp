@@ -2,7 +2,7 @@
 #include "RoboticFirmware.h"
 #include "RobotController.h"
 
-#define FAILED_TILT_LEVEL 5000
+#define FAILED_TILT_LEVEL 8000
 
 Gyroscope::Gyroscope() {
   Wire.begin();
