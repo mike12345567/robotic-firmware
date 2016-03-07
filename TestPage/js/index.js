@@ -1,5 +1,4 @@
 var deviceID = "300032001147343339383037";
-var accessToken = "da837cbd013221af2cac61eea03e15d8459c49ea";
 var funcName = "makeMove";
 var rotationUnit = "degrees";
 var noSelected = "none";
