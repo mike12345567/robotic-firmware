@@ -34,6 +34,8 @@ class RobotController {
     void changeState(RobotState newState);
     void motorStateChange();
     void process();
+    bool hasFailed();
+    void resetFailed();
 
     void setRobotSpeed(unsigned int speed);
     void motorsSetDistance(char *arg, DistanceUnit unit);

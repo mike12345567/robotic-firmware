@@ -34,7 +34,8 @@ void RobotController::process() {
 void RobotController::dangerClose(UltrasonicPosition position, unsigned int distance) {
   if (position == US_POSITION_FRONT &&
       this->state != ROBOT_STOPPED &&
-      this->state != ROBOT_BACKWARD) {
+      this->state != ROBOT_BACKWARD &&
+      this->state != ROBOT_CLEANUP) {
     PublishEvent::QueueEvent(PUBLISH_EVENT_STOP);
     changeState(ROBOT_STOPPED);
   }
@@ -49,6 +50,10 @@ void RobotController::tiltOccurred(unsigned int x, unsigned int y) {
   if (this->state != ROBOT_STOPPED) {
     changeState(ROBOT_STOPPED);
   }
+}
+
+void RobotController::resetFailed() {
+  this->failed = false;
 }
 
 void RobotController::motorsSetDistance(char *arg, DistanceUnit unit) {
@@ -141,6 +146,11 @@ Calibration* RobotController::getCalibration(bool left) {
 
 unsigned int RobotController::getSpeed() {
   return speed;
+}
+
+
+bool RobotController::hasFailed() {
+  return failed;
 }
 
 void RobotController::changeTurningState(bool turning) {
