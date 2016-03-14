@@ -88,6 +88,7 @@ int makeMove(String param) {
       pointer = strtok(NULL, ",");
     }
 
+    // if values per motor then left comes first, right second in args
     bool moving = false;
     if (strcmp("stop", args[0]) == 0 && argCount == 1) {
       robotController->changeState(ROBOT_STOPPED);
@@ -114,10 +115,10 @@ int makeMove(String param) {
         robotController->calibrateTurning(turnLengthMs);
       }
     } else if (strcmp("calibrateSpeed", args[0]) == 0 && argCount == 3) {
-      unsigned int rightCal = strtoul(args[1], NULL, 10);
-      unsigned int leftCal = strtoul(args[2], NULL, 10);
+      unsigned int leftCal = strtoul(args[1], NULL, 10);
+      unsigned int rightCal = strtoul(args[2], NULL, 10);
       if (leftCal != UINTMAX_MAX && rightCal != UINTMAX_MAX) {
-        robotController->calibrateSpeed(rightCal, leftCal);
+        robotController->calibrateSpeed(leftCal, rightCal);
       }
     } else if (strcmp("sendCalibration", args[0]) == 0 && argCount == 1) {
       PublishEvent::QueueEvent(PUBLISH_EVENT_CALIBRATION);

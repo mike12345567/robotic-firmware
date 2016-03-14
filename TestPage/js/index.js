@@ -130,7 +130,7 @@ $(document).ready(function() {
                 var rightWheel = getInput(InputEnum.CAL_RIGHT_WHEEL);
                 var leftWheel = getInput(InputEnum.CAL_LEFT_WHEEL);
                 if (rightWheel == null || leftWheel == null) return;
-                particleCall(getCmd(name), rightWheel, leftWheel);
+                particleCall(getCmd(name), leftWheel, rightWheel);
             }
             
             if (name == ButtonEnum.CAL_TURNING.btnName) {
