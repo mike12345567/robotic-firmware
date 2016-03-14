@@ -16,6 +16,12 @@ EventEnum = {
     GYROSCOPE_READINGS : "gyroscopeReadings",
 }
 
+MotorDirectionEnum = {
+  DIRECTION_FORWARD  : 1 << 0,
+  DIRECTION_BACKWARD : 1 << 1,
+  DIRECTION_MAX      : 1 << 2
+};
+
 ButtonEnum = {
     FORWARD : {cmd: "forward", btnName: "forward-btn"},
     BACKWARD : {cmd: "backward", btnName: "backward-btn"},
@@ -48,6 +54,8 @@ InputEnum = {
     DIST_FRONT : "dist-front-output",
     GYRO_READ : "gyro-read-output",
     EVENTS : "event-area",
+    CAL_DIR_LEFT: "left-direction-input",
+    CAL_DIR_RIGHT: "right-direction-input",
 }
 
 $(document).ready(function() {
@@ -84,6 +92,7 @@ $(document).ready(function() {
                 var array = base64js.toByteArray(data.data);
                 outputGyroReadings(array);
                 break;
+            
         }
     });
 
@@ -159,7 +168,22 @@ $(document).ready(function() {
             waitForLift = false;
         }
     });
+
+    $("#left-direction-input").change(function() {
+        sendUpdatedDirection();
+    });
+
+    $("#right-direction-input").change(function() {
+        sendUpdatedDirection();
+    });
 });
+
+function sendUpdatedDirection() {
+    var directionLeft = getInput(InputEnum.CAL_DIR_LEFT);
+    var directionRight = getInput(InputEnum.CAL_DIR_RIGHT);
+    
+    particleCall("calibrateDirection", directionLeft, directionRight);
+}
 
 function outputEvent(eventName) {
     var date = new Date();
@@ -173,6 +197,8 @@ function outputCalibration(array) {
     setInput(InputEnum.CAL_LEFT_WHEEL, array[4] | (array[5] << 8));
     setInput(InputEnum.CAL_TURNING, array[6] | (array[7] << 8));
     setInput(InputEnum.CAL_FRICTION, array[8] | (array[9] << 8));
+    setInput(InputEnum.CAL_DIR_LEFT, array[10] | (array[11] << 8));
+    setInput(InputEnum.CAL_DIR_RIGHT, array[12] | (array[13] << 8));
 }
 
 function outputDistances(array){
@@ -257,7 +283,14 @@ function particleCall(cmd, parameters) {
 
 function getInput(inputName) {
     var value;
-    if (inputName == InputEnum.UNIT) {
+    if (inputName == InputEnum.CAL_DIR_LEFT || inputName == InputEnum.CAL_DIR_RIGHT) {
+        value = $("#" + inputName + " option:selected")[0].value;
+        if (value === "forward") {
+            value = MotorDirectionEnum.DIRECTION_FORWARD;
+        } else {
+            value = MotorDirectionEnum.DIRECTION_BACKWARD;
+        }
+    } else if (inputName == InputEnum.UNIT) {
         value = $("#" + inputName + " option:selected")[0].value;
         if (value == noSelected) {
             value = null;
@@ -270,5 +303,10 @@ function getInput(inputName) {
 }
 
 function setInput(inputName, value) {
-    $("#" + inputName).val(value);
+    if (inputName == InputEnum.CAL_DIR_LEFT || inputName == InputEnum.CAL_DIR_RIGHT) {
+       var string = value == MotorDirectionEnum.DIRECTION_FORWARD ? "forward" : "backward";
+       $("#"+inputName+" option:contains(" + string + ")").prop({selected: true});
+    } else {
+        $("#" + inputName).val(value);
+    }
 }

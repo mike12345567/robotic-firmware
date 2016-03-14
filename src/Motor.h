@@ -6,12 +6,23 @@
 
 #define LAST_MOTOR (1 << 8)
 #define DEFAULT_MOTOR_SPEED 160
+#define MINIMUM_SPEED 50
+#define MAXIMUM_SPEED 255
+
+/* whether the motor is attached reversed or not */
+enum MotorDirection {
+  DIRECTION_FORWARD  = 1 << 0,
+  DIRECTION_BACKWARD = 1 << 1,
+  DIRECTION_MAX      = 1 << 2
+};
 
 enum MotorState {
   FORWARD,
   BACKWARD,
   STOPPED,
+#ifdef WHEEL_CASTER
   CLEANUP,
+#endif
 };
 
 enum DistanceUnit {
@@ -35,14 +46,16 @@ class Motor {
     RobotTimer* stopTimer = NULL;
     MotorPosition position = MOTOR_POS_UNSET;
     unsigned int speed = 0;
+    unsigned minimumTurnSpeed = 0;
     unsigned int directionPin;
     unsigned int brakePin;
     unsigned int speedPin;
+#ifdef WHEEL_CASTER
     bool cleanOtherDirection = false;
+#endif
 
     unsigned int lastTravelTime = 0;
     bool turning = false;
-    bool reversed;
     bool stateChange = false;
     MotorState currentState;
 
@@ -52,7 +65,9 @@ class Motor {
 
     double calculateSurfaceSpeed(unsigned int speed);
     const char* stateToString();
+#ifdef WHEEL_CASTER
     void casterCleanup();
+#endif
     void pinOut(MotorState state, bool turning);
   public:
     Calibration *calibration = NULL;

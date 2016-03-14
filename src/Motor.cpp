@@ -3,9 +3,7 @@
 #include "Calibration.h"
 #include <math.h>
 
-#define MINIMUM_SPEED 80
-#define MINIMUM_TURN_SPEED DEFAULT_MOTOR_SPEED + 40
-#define MAXIMUM_SPEED 255
+#define MINIMUM_TURN_SPEED_ADD 10
 #define WHEEL_DIAMETER_MM 65
 #define NO_LOAD_MOTOR_RPM 140
 #define MINIMUM_FRIC_CALIB 0.8
@@ -21,7 +19,6 @@ Motor::Motor(unsigned int directionPin, unsigned int brakePin,
   this->directionPin = directionPin;
   this->brakePin = brakePin;
   this->speedPin = speedPin;
-  this->reversed = reversed;
   this->currentState = STOPPED;
   this->calibration = new Calibration(this->position);
 
@@ -33,26 +30,34 @@ Motor::Motor(unsigned int directionPin, unsigned int brakePin,
 void Motor::process() {
   if (this->stateChange) {
 #ifndef NO_MOVEMENT
+#ifdef WHEEL_CASTER
     if (currentState == CLEANUP) {
       casterCleanup();
     } else {
+#endif
       pinOut(currentState, turning);
+#ifdef WHEEL_CASTER
     }
+#endif
 #endif
     stateChange = false;
   }
 
   if (currentState != STOPPED && stopTimer->isComplete()) {
+#ifdef WHEEL_CASTER
     if (currentState == CLEANUP && !cleanOtherDirection) {
       cleanOtherDirection = true;
       casterCleanup();
     } else {
+#endif
       setState(STOPPED);
       stopTimer->stop();
       if (parent != NULL && callback != NULL) {
         (parent->*callback)();
       }
+#ifdef WHEEL_CASTER
     }
+#endif
   }
 }
 
@@ -63,14 +68,15 @@ void Motor::pinOut(MotorState state, bool turning) {
     trueFwdSpeed += calibration->getFwdSpeedCalibration();
     trueBackSpeed += calibration->getBackSpeedCalibration();
   } else {
-    if (trueFwdSpeed < MINIMUM_TURN_SPEED) {
-      trueFwdSpeed = MINIMUM_TURN_SPEED;
+    if (trueFwdSpeed < minimumTurnSpeed) {
+      trueFwdSpeed = minimumTurnSpeed;
     }
-    if (trueBackSpeed < MINIMUM_TURN_SPEED) {
-      trueBackSpeed = MINIMUM_TURN_SPEED;
+    if (trueBackSpeed < minimumTurnSpeed) {
+      trueBackSpeed = minimumTurnSpeed;
     }
   }
 
+  bool direction = calibration->getMotorDirection() == DIRECTION_FORWARD;
   switch (state) {
     case STOPPED:
       digitalWrite(this->brakePin, HIGH);
@@ -79,27 +85,23 @@ void Motor::pinOut(MotorState state, bool turning) {
       break;
     case FORWARD:
       digitalWrite(this->brakePin, LOW);
-      digitalWrite(this->directionPin, reversed ? HIGH : LOW);
+      digitalWrite(this->directionPin, direction ? LOW : HIGH);
       analogWrite(this->speedPin, trueFwdSpeed);
       break;
     case BACKWARD:
       digitalWrite(this->brakePin, LOW);
-      digitalWrite(this->directionPin, reversed ? LOW : HIGH);
+      digitalWrite(this->directionPin, direction ? HIGH : LOW);
       analogWrite(this->speedPin, trueBackSpeed);
       break;
   }
 }
 
 void Motor::setSpeed(unsigned int speed) {
-  if (speed > MAXIMUM_SPEED) {
-    this->speed = MAXIMUM_SPEED;
-  } else if (speed < MINIMUM_SPEED) {
-    this->speed = MINIMUM_SPEED;
-  } else {
-    this->speed = speed;
-  }
+  this->speed = speed;
+  minimumTurnSpeed = speed + MINIMUM_TURN_SPEED_ADD;
 }
 
+#ifdef WHEEL_CASTER
 void Motor::casterCleanup() {
   unsigned int durationMs = CLEANUP_TIME_TURN_MS;
 
@@ -112,6 +114,7 @@ void Motor::casterCleanup() {
     stopTimer->start();
   }
 }
+#endif
 
 void Motor::setStateCallback(RobotController* parent, CallbackType callbackFunc) {
   this->parent = parent;
@@ -122,7 +125,9 @@ void Motor::setState(MotorState state) {
   if (state == STOPPED) {
     stopTimer->stop();
   }
+#ifdef WHEEL_CASTER
   cleanOtherDirection = false;
+#endif
   currentState = state;
   Serial.println(stateToString());
   stateChange = true;
@@ -135,8 +140,8 @@ MotorState Motor::getState() {
 void Motor::moveForDistance(unsigned int distance, DistanceUnit unit) {
   double timeMs = 0;
   unsigned int realSpeed = this->speed;
-  if (turning && realSpeed < MINIMUM_TURN_SPEED) {
-    realSpeed = MINIMUM_TURN_SPEED;
+  if (turning && realSpeed < minimumTurnSpeed) {
+    realSpeed = minimumTurnSpeed;
   }
   unsigned int frictionCal = 1 + (double)(this->calibration->getFrictionCalibration() / 100);
   if (unit != DEGREES) {
@@ -152,7 +157,7 @@ void Motor::moveForDistance(unsigned int distance, DistanceUnit unit) {
     }
   } else {
     double partOfCircle = (double) distance / 360;
-    double speedFactor = calculateSurfaceSpeed(MINIMUM_TURN_SPEED) / calculateSurfaceSpeed(realSpeed);
+    double speedFactor = calculateSurfaceSpeed(minimumTurnSpeed) / calculateSurfaceSpeed(realSpeed);
     speedFactor *= partOfCircle;
     timeMs = (double) (calibration->getTurnCalibration() * speedFactor);
     if (distance <= SMALL_TURN_ANGLE && this->speed <= LOW_TURN_SPEED) {
@@ -180,8 +185,10 @@ const char* Motor::stateToString() {
       return "FORWARD";
     case BACKWARD:
       return "BACKWARD";
+#ifdef WHEEL_CASTER
     case CLEANUP:
       return "CLEANUP";
+#endif
   }
   return "UNKNOWN";
 }

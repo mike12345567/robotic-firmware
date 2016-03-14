@@ -12,30 +12,28 @@
 #include <stdlib.h>
 
 RobotController::RobotController() {
+  this->speed = getStorageController()->readUnsignedInt(STORAGE_TYPE_CAL_BASE_SPEED);
   motorRight = new Motor(PinMapping::motorPinR, PinMapping::brakePinR,
                          PinMapping::speedPinR, false, MOTOR_POS_RIGHT);
-  motorRight->setSpeed(DEFAULT_MOTOR_SPEED);
+  motorRight->setSpeed(this->speed);
   motorRight->setStateCallback(this, &RobotController::motorStateChange);
   motorLeft = new Motor(PinMapping::motorPinL, PinMapping::brakePinL,
                         PinMapping::speedPinL, true, MOTOR_POS_LEFT);
-  motorLeft->setSpeed(DEFAULT_MOTOR_SPEED);
+  motorLeft->setSpeed(this->speed);
   motorLeft->setStateCallback(this, &RobotController::motorStateChange);
-
-  speed = DEFAULT_MOTOR_SPEED;
 }
 
 void RobotController::process() {
   motorRight->process();
   motorLeft->process();
-
-  unsigned int distanceCm = getFrontUltrasonicSensor()->getDistanceCm();
 }
 
 void RobotController::dangerClose(UltrasonicPosition position, unsigned int distance) {
-  if (position == US_POSITION_FRONT &&
-      this->state != ROBOT_STOPPED &&
-      this->state != ROBOT_BACKWARD &&
-      this->state != ROBOT_CLEANUP) {
+  bool notDangerCloseState = this->state != ROBOT_STOPPED && this->state != ROBOT_BACKWARD;
+#ifdef WHEEL_CASTER
+  notDangerCloseState = notDangerCloseState && this->state != ROBOT_CLEANUP;
+#endif
+  if (position == US_POSITION_FRONT && notDangerCloseState) {
     PublishEvent::QueueEvent(PUBLISH_EVENT_STOP);
     changeState(ROBOT_STOPPED);
   }
@@ -72,10 +70,12 @@ void RobotController::changeState(RobotState newState) {
   Serial.print("CHANGING STATE -> ");
   Serial.println(robotStateToString(newState));
 
+#ifdef WHEEL_CASTER
   if (cleaningCaster) {
     Serial.println("FAILED -> CLEANING CASTER");
     return;
   }
+#endif
 
   if (newState == ROBOT_TURNING_LEFT || newState == ROBOT_TURNING_RIGHT) {
     changeTurningState(true);
@@ -85,6 +85,7 @@ void RobotController::changeState(RobotState newState) {
 
   switch (newState) {
     case ROBOT_STOPPED:
+#ifdef WHEEL_CASTER
       if (state != ROBOT_FORWARD &&
           state != ROBOT_STOPPED &&
           state != ROBOT_CLEANUP &&
@@ -95,6 +96,9 @@ void RobotController::changeState(RobotState newState) {
       } else {
         setMotorStates(STOPPED);
       }
+#else
+      setMotorStates(STOPPED);
+#endif
       if (movingForDistance) {
         movingForDistance = false;
       }
@@ -119,9 +123,15 @@ void RobotController::changeState(RobotState newState) {
 }
 
 void RobotController::setRobotSpeed(unsigned int speed) {
+  if (speed > MAXIMUM_SPEED) {
+    this->speed = MAXIMUM_SPEED;
+  } else if (speed < MINIMUM_SPEED) {
+    this->speed = MINIMUM_SPEED;
+  }
   motorRight->setSpeed(speed);
   motorLeft->setSpeed(speed);
   this->speed = speed;
+  getStorageController()->writeUnsignedInt(STORAGE_TYPE_CAL_BASE_SPEED, speed);
 }
 
 void RobotController::calibrateTurning(unsigned int turnTimeMs) {
@@ -138,6 +148,12 @@ void RobotController::calibrateSpeed(unsigned int extraSpeedRight,
 void RobotController::calibrateFriction(unsigned int friction) {
   motorRight->calibration->calibrateFriction(friction);
   motorLeft->calibration->calibrateFriction(friction);
+}
+
+void RobotController::calibrateDirection(unsigned int leftDirection,
+                                         unsigned int rightDirection) {
+  motorRight->calibration->calibrateDirection(rightDirection);
+  motorLeft->calibration->calibrateDirection(leftDirection);
 }
 
 Calibration* RobotController::getCalibration(bool left) {
@@ -165,16 +181,20 @@ void RobotController::motorStateChange() {
       movingForDistance = false;
       PublishEvent::QueueEvent(PUBLISH_EVENT_COMPLETE);
     }
+#ifdef WHEEL_CASTER
     if (cleaningCaster) {
       cleaningCaster = false;
     }
+#endif
     changeState(ROBOT_STOPPED);
   }
 }
 
+#ifdef WHEEL_CASTER
 bool RobotController::cleaningUpCaster() {
   return cleaningCaster;
 }
+#endif
 
 const char* RobotController::robotStateToString(RobotState state) {
   switch (state) {
@@ -188,8 +208,10 @@ const char* RobotController::robotStateToString(RobotState state) {
       return "ROBOT_TURNING_RIGHT";
     case ROBOT_BACKWARD:
       return "ROBOT_BACKWARD";
+#ifdef WHEEL_CASTER
     case ROBOT_CLEANUP:
       return "ROBOT_CLEANUP";
+#endif
     case ROBOT_NO_STATE:
       return "ROBOT_NO_STATE";
   }

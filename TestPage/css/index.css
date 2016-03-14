@@ -76,6 +76,12 @@ h4 {
   margin-bottom: 25px;
 }
 
+.radio-inline {
+  margin-top: 0px !important;
+  width: 0px !important;
+  clear: none !important;
+  margin-bottom: 0px !important;
+}
 
 @media only screen 
 and (min-device-width : 1000px)  {

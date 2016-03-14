@@ -13,6 +13,10 @@ ifeq ("$(NO_MOVEMENT)", "y")
 CPPFLAGS_EX+=-DNO_MOVEMENT
 endif
 
+ifeq ("$(WHEEL_CASTER)", "y")
+CPPFLAGS_X+=-DWHEEL_CASTER
+endif
+
 export CPPFLAGS=$(CPPFLAGS_EX)
 
 all elf bin hex size clean:

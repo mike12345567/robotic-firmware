@@ -11,7 +11,9 @@ enum RobotState {
   ROBOT_FORWARD,
   ROBOT_STOPPED,
   ROBOT_BACKWARD,
+#ifdef WHEEL_CASTER
   ROBOT_CLEANUP,
+#endif
   ROBOT_NO_STATE,
 };
 
@@ -21,7 +23,9 @@ class RobotController {
     unsigned int speed = 0;
     RobotState state = ROBOT_STOPPED;
     bool movingForDistance = false;
+#ifdef WHEEL_CASTER
     bool cleaningCaster = false;
+#endif
 
     Motor* motorRight = NULL;
     Motor* motorLeft = NULL;
@@ -42,9 +46,12 @@ class RobotController {
     void calibrateTurning(unsigned int turnTimeMs);
     void calibrateSpeed(unsigned int extraSpeedRight, unsigned int extraSpeedLeft);
     void calibrateFriction(unsigned int friction);
+    void calibrateDirection(unsigned int leftDirection, unsigned int rightDirection);
     void dangerClose(UltrasonicPosition position, unsigned int distanceCm);
     void tiltOccurred(unsigned int x, unsigned int y);
+#ifdef WHEEL_CASTER
     bool cleaningUpCaster();
+#endif
 
     Calibration* getCalibration(bool left);
     unsigned int getSpeed();

@@ -31,7 +31,6 @@ void PublishEvent::Setup() {
 }
 
 void PublishEvent::QueueEvent(PublishEvents event) {
-  auto iterator = PublishEvent::events.begin();
   for (auto iterator = PublishEvent::events.begin();
        iterator != PublishEvent::events.end(); iterator++) {
     if (*iterator == event)
@@ -66,23 +65,26 @@ void PublishEvent::PublishCalibration() {
   unsigned int leftSpeedCal = leftCal->getFwdSpeedCalibration();
   unsigned int rightSpeedCal = rightCal->getFwdSpeedCalibration();
   unsigned int frictionCal = leftCal->getFrictionCalibration();
+  unsigned int leftDirection = leftCal->getMotorDirection();
+  unsigned int rightDirection = rightCal->getMotorDirection();
 
-  unsigned int byteCount = PublishEvent::PackBytes(4, false,
-      speed, rightSpeedCal, leftSpeedCal, turnCalibration, frictionCal);
+  unsigned int byteCount = PublishEvent::PackBytes(false, 7,
+      speed, rightSpeedCal, leftSpeedCal, turnCalibration,
+      frictionCal, leftDirection, rightDirection);
   PublishEvent::Publish("calibrationValues", byteCount);
 }
 
 void PublishEvent::PublishUltrasonic() {
   unsigned int distance = getFrontUltrasonicSensor()->getDistanceCm();
 
-  unsigned int byteCount = PublishEvent::PackBytes(4, false, distance);
+  unsigned int byteCount = PublishEvent::PackBytes(false, 4, distance);
   PublishEvent::Publish("distanceCm", byteCount);
 }
 
 void PublishEvent::PublishGyroscope() {
   GyroscopeReadings* readings = getGyroscope()->getCurrentReadings();
 
-  unsigned int byteCount = PublishEvent::PackBytes(6, true,
+  unsigned int byteCount = PublishEvent::PackBytes(true, 6,
       readings->accelX, readings->accelY, readings->accelZ,
       readings->gyroX, readings->gyroY, readings->gyroZ);
   PublishEvent::Publish("gyroscopeReadings", byteCount);
@@ -136,7 +138,7 @@ void PublishEvent::PublishFromQueue() {
   }
 }
 
-unsigned int PublishEvent::PackBytes(int numberInts, bool sign, ...) {
+unsigned int PublishEvent::PackBytes(bool sign, int numberInts, ...) {
   memset(&packedBytes, 0, sizeof(packedBytes));
   unsigned int byteCount = 0;
 

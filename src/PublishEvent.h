@@ -24,7 +24,7 @@ class PublishEvent {
     static RobotTimer* queueEmptyTimer;
     static publishQueue events;
 
-    static unsigned int PackBytes(int numberInts, bool sign, ...);
+    static unsigned int PackBytes(bool sign, int numberInts, ...);
     static void PublishComplete();
     static void PublishStopped();
     static void PublishFailed();

@@ -32,8 +32,8 @@ unsigned int lastStateChangeMs = 0;
 
 void setup() {
   Serial.begin(115200);
-  robotController = new RobotController();
   storageController = new StorageController();
+  robotController = new RobotController();
   ultrasonicSensor = new UltrasonicSensor(US_POSITION_FRONT);
   gyroscope = new Gyroscope();
 
@@ -129,6 +129,12 @@ int makeMove(String param) {
       }
     } else if (strcmp("resetFailed", args[0]) == 0 && argCount == 1) {
       robotController->resetFailed();
+    } else if (strcmp("calibrateDirection", args[0]) == 0 && argCount == 3) {
+      unsigned int leftDir = strtoul(args[1], NULL, 10);
+      unsigned int rightDir = strtoul(args[2], NULL, 10);
+      if (rightDir != UINTMAX_MAX && leftDir != UINTMAX_MAX) {
+        robotController->calibrateDirection(leftDir, rightDir);
+      }
     }
 
     if (moving && argCount == 3) {

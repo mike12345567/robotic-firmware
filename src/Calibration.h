@@ -11,13 +11,16 @@
 #define MAX_TURNING_TIME_MS 25000
 #define MOTOR_CALIBRATION_MAX 64
 #define DEFAULT_TURNING_CALIBRATION 2000
+#define DEFAULT_MOTOR_DIRECTION DIRECTION_FORWARD
 
 
 class Calibration {
   private:
     MotorPosition position;
+    MotorDirection direction;
     StorageType motorSpeedFwdCal;
     StorageType motorSpeedBackCal;
+    StorageType directionType;
 
     unsigned int turnCalibration = DEFAULT_TURNING_CALIBRATION;
     unsigned int speedFwdCalibration = 0;
@@ -31,11 +34,13 @@ class Calibration {
     void calibrateSpeed(unsigned int fwdSpeed, unsigned int backSpeed);
     void calibrateTurning(unsigned int turnTimeMs);
     void calibrateFriction(unsigned int frictionCal);
+    void calibrateDirection(unsigned int direction);
 
     unsigned int getTurnCalibration();
     unsigned int getFwdSpeedCalibration();
     unsigned int getBackSpeedCalibration();
     unsigned int getFrictionCalibration();
+    unsigned int getMotorDirection();
 };
 
 #endif
