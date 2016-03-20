@@ -107,11 +107,19 @@ void RobotController::changeState(RobotState newState) {
       setMotorStates(FORWARD);
       break;
     case ROBOT_TURNING_LEFT:
-      motorRight->setState(FORWARD);
+#ifdef ONE_WHEEL_ROTATION
       motorLeft->setState(STOPPED);
+#else
+      motorLeft->setState(BACKWARD);
+#endif
+      motorRight->setState(FORWARD);
       break;
     case ROBOT_TURNING_RIGHT:
+#ifdef ONE_WHEEL_ROTATION
       motorRight->setState(STOPPED);
+#else
+      motorRight->setState(BACKWARD);
+#endif
       motorLeft->setState(FORWARD);
       break;
     case ROBOT_BACKWARD:

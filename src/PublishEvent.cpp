@@ -18,9 +18,12 @@ static char publishArray[MAX_PUBLISH_BYTES];
 
 RobotTimer* PublishEvent::intervalTimer = NULL;
 RobotTimer* PublishEvent::queueEmptyTimer = NULL;
+NetworkController* PublishEvent::networkController = NULL;
 publishQueue PublishEvent::events;
 
 void PublishEvent::Setup() {
+  PublishEvent::networkController = new NetworkController();
+
   PublishEvent::intervalTimer = new RobotTimer(true);
   PublishEvent::intervalTimer->setDuration(INTERVAL_TIMER_MS, MILLISECONDS);
   PublishEvent::intervalTimer->start();
@@ -28,6 +31,10 @@ void PublishEvent::Setup() {
   PublishEvent::queueEmptyTimer = new RobotTimer(true);
   PublishEvent::queueEmptyTimer->setDuration(QUEUE_EMPTY_RATE_MS, MILLISECONDS);
   PublishEvent::queueEmptyTimer->start();
+}
+
+NetworkController* PublishEvent::getNetworkController() {
+  return PublishEvent::networkController;
 }
 
 void PublishEvent::QueueEvent(PublishEvents event) {
@@ -103,6 +110,8 @@ void PublishEvent::Process() {
   if (PublishEvent::queueEmptyTimer->isComplete()) {
     PublishEvent::PublishFromQueue();
   }
+
+  PublishEvent::networkController->process();
 }
 
 void PublishEvent::PublishFromQueue() {

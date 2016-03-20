@@ -4,6 +4,7 @@
 #include "application.h"
 #include "RobotTimer.h"
 #include "MapHack.h"
+#include "NetworkController.h"
 #include <deque>
 
 enum PublishEvents {
@@ -23,6 +24,7 @@ class PublishEvent {
     static RobotTimer* intervalTimer;
     static RobotTimer* queueEmptyTimer;
     static publishQueue events;
+    static NetworkController* networkController;
 
     static unsigned int PackBytes(bool sign, int numberInts, ...);
     static void PublishComplete();
@@ -36,6 +38,8 @@ class PublishEvent {
     static void PublishFromQueue();
     static void Publish(const char *url, unsigned int byteCount);
   public:
+    static NetworkController* getNetworkController();
+
     static void Setup();
     static void QueueEvent(PublishEvents event);
     static void Process();
