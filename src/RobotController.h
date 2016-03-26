@@ -44,7 +44,7 @@ class RobotController {
     void setRobotSpeed(unsigned int speed);
     void motorsSetDistance(char *arg, DistanceUnit unit);
     void calibrateTurning(unsigned int turnTimeMs);
-    void calibrateSpeed(unsigned int extraSpeedRight, unsigned int extraSpeedLeft);
+    void calibrateSpeed(unsigned int extraSpeedLeft, unsigned int extraSpeedRight);
     void calibrateFriction(unsigned int friction);
     void calibrateDirection(unsigned int leftDirection, unsigned int rightDirection);
     void dangerClose(UltrasonicPosition position, unsigned int distanceCm);

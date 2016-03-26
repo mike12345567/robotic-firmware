@@ -147,8 +147,8 @@ void RobotController::calibrateTurning(unsigned int turnTimeMs) {
   motorLeft->calibration->calibrateTurning(turnTimeMs);
 }
 
-void RobotController::calibrateSpeed(unsigned int extraSpeedRight,
-                                     unsigned int extraSpeedLeft) {
+void RobotController::calibrateSpeed(unsigned int extraSpeedLeft,
+                                     unsigned int extraSpeedRight) {
   motorRight->calibration->calibrateSpeed(extraSpeedRight, extraSpeedLeft);
   motorLeft->calibration->calibrateSpeed(extraSpeedLeft, extraSpeedRight);
 }
