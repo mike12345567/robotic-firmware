@@ -8,8 +8,10 @@
 #include "RobotTimer.h"
 #include <vector>
 
+/* forward declare some classes to avoid cyclic dependency */
 class StorageController;
 class RobotController;
+class EventController;
 
 void serialOutput();
 DistanceUnit getDistanceUnitFromArg(char *arg);
@@ -20,6 +22,7 @@ void publishComplete();
 RobotController* getRobotController();
 UltrasonicSensor* getFrontUltrasonicSensor();
 StorageController* getStorageController();
+EventController* getEventController();
 Gyroscope* getGyroscope();
 
 #endif

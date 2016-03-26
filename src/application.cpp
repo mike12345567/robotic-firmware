@@ -2,7 +2,7 @@
 #include "spark_wiring_timer.h"
 #include "PinMapping.h"
 #include "RobotController.h"
-#include "PublishEvent.h"
+#include "EventController.h"
 #include "StorageController.h"
 #include "UltrasonicSensor.h"
 #include "Gyroscope.h"
@@ -19,6 +19,7 @@ std::vector<RobotTimer*> robotTimers;
 RobotController* robotController = NULL;
 StorageController* storageController = NULL;
 UltrasonicSensor* ultrasonicSensor = NULL;
+EventController* eventController = NULL;
 Gyroscope* gyroscope = NULL;
 
 STARTUP(WiFi.selectAntenna(ANT_AUTO));
@@ -36,8 +37,8 @@ void setup() {
   robotController = new RobotController();
   ultrasonicSensor = new UltrasonicSensor(US_POSITION_FRONT);
   gyroscope = new Gyroscope();
+  eventController = new EventController();
 
-  PublishEvent::Setup();
   Particle.function("makeMove", makeMove);
   serialTimer.start();
 }
@@ -54,7 +55,7 @@ void loop() {
     iterator++;
   }
 
-  PublishEvent::Process();
+  eventController->process();
 }
 
 /* TODO: Change this to something more meaningful */
@@ -120,8 +121,8 @@ int makeMove(String param) {
         robotController->calibrateSpeed(rightCal, leftCal);
       }
     } else if (strcmp("sendCalibration", args[0]) == 0 && argCount == 1) {
-      PublishEvent::QueueEvent(PUBLISH_EVENT_CALIBRATION);
-      PublishEvent::QueueEvent(PUBLISH_EVENT_HAS_FAILED);
+      eventController->queueEvent(PUBLISH_EVENT_CALIBRATION);
+      eventController->queueEvent(PUBLISH_EVENT_HAS_FAILED);
     } else if (strcmp("calibrateFriction", args[0]) == 0 && argCount == 2) {
       unsigned int friction = strtoul(args[1], NULL, 10);
       if (friction != UINTMAX_MAX) {
@@ -163,6 +164,10 @@ StorageController* getStorageController() {
 
 UltrasonicSensor* getFrontUltrasonicSensor() {
   return ultrasonicSensor;
+}
+
+EventController* getEventController() {
+  return eventController;
 }
 
 Gyroscope* getGyroscope() {

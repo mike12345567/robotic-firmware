@@ -2,7 +2,7 @@
 #include "RoboticFirmware.h"
 
 #include "PinMapping.h"
-#include "PublishEvent.h"
+#include "EventController.h"
 #include "StorageController.h"
 #include "Calibration.h"
 
@@ -34,7 +34,7 @@ void RobotController::dangerClose(UltrasonicPosition position, unsigned int dist
   notDangerCloseState = notDangerCloseState && this->state != ROBOT_CLEANUP;
 #endif
   if (position == US_POSITION_FRONT && notDangerCloseState) {
-    PublishEvent::QueueEvent(PUBLISH_EVENT_STOP);
+    getEventController()->queueEvent(PUBLISH_EVENT_STOP);
     changeState(ROBOT_STOPPED);
   }
 }
@@ -42,7 +42,7 @@ void RobotController::dangerClose(UltrasonicPosition position, unsigned int dist
 void RobotController::tiltOccurred(unsigned int x, unsigned int y) {
   if (!failed) {
   // In future this should kill the robot
-    PublishEvent::QueueEvent(PUBLISH_EVENT_FAIL);
+    getEventController()->queueEvent(PUBLISH_EVENT_FAIL);
     failed = true;
   }
   if (this->state != ROBOT_STOPPED) {
@@ -187,7 +187,7 @@ void RobotController::motorStateChange() {
       motorRight->getState() == STOPPED) {
     if (movingForDistance) {
       movingForDistance = false;
-      PublishEvent::QueueEvent(PUBLISH_EVENT_COMPLETE);
+      getEventController()->queueEvent(PUBLISH_EVENT_COMPLETE);
     }
 #ifdef WHEEL_CASTER
     if (cleaningCaster) {

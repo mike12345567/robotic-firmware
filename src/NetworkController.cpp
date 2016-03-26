@@ -1,6 +1,6 @@
 #include "NetworkController.h"
 #include "RoboticFirmware.h"
-#include "PublishEvent.h"
+#include "EventController.h"
 
 NetworkController::NetworkController() {
 
@@ -19,7 +19,7 @@ void NetworkController::sendCoapResponse(IPAddress ip, int port, uint16_t messag
 }
 
 void callbackMakeMove(CoapPacket &packet, IPAddress ip, int port) {
-  NetworkController* networkController = PublishEvent::getNetworkController();
+  NetworkController* networkController = getEventController()->getNetworkController();
 
   String params = (const char*)packet.payload;
   makeMove(params);
