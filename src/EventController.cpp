@@ -83,7 +83,7 @@ void EventController::publishHasFailed() {
 
 void EventController::publishLocalIP() {
   IPAddress addr = WiFi.localIP();
-  unsigned int byteCount = packBytes(false, 1, addr.raw());
+  unsigned int byteCount = packBytes(false, 1, addr.raw().ipv4);
   publish(getURL(PUBLISH_EVENT_LOCAL_IP), byteCount);
 }
 
@@ -102,12 +102,15 @@ void EventController::publishCalibration() {
       speed, rightSpeedCal, leftSpeedCal, turnCalibration,
       frictionCal, leftDirection, rightDirection);
   publish(getURL(PUBLISH_EVENT_CALIBRATION), byteCount);
+  queueEvent(PUBLISH_EVENT_LOCAL_IP);
 }
 
 void EventController::publishUltrasonic() {
   unsigned int distance = getFrontUltrasonicSensor()->getDistanceCm();
+  /* distance no more than 2 bytes */
+  distance &= 0xFFFF;
 
-  unsigned int byteCount = packBytes(false, 4, distance);
+  unsigned int byteCount = packBytes(false, 1, distance);
   publish(getURL(PUBLISH_EVENT_ULTRASONIC), byteCount);
 }
 
@@ -182,14 +185,22 @@ unsigned int EventController::packBytes(bool sign, int numberInts, ...) {
   for(int i = 2; i <= numberInts+2; i++) {
     if (!sign) {
       unsigned int integer = va_arg(ap, unsigned int);
-      /* values no larger than 16 bits unsigned */
+      /* values no larger than 32 bits unsigned */
       packedBytes[byteCount++] = integer & 0xFF;
       packedBytes[byteCount++] = (integer >> 8) & 0xFF;
+      if (((integer >> 16) & 0xFF) != 0) {
+        packedBytes[byteCount++] = (integer >> 16) & 0xFF;
+      }
+      if (((integer >> 24) & 0xFF) != 0) {
+        packedBytes[byteCount++] = (integer >> 24) & 0xFF;
+      }
     } else {
       int integer = va_arg(ap, int);
-      /* values no larger than 16 bits signed */
+      /* values no larger than 32 bits signed */
       packedBytes[byteCount++] = integer & 0xFF;
       packedBytes[byteCount++] = (integer >> 8) & 0xFF;
+      packedBytes[byteCount++] = (integer >> 16) & 0xFF;
+      packedBytes[byteCount++] = (integer >> 24) & 0xFF;
     }
   }
   va_end(ap);

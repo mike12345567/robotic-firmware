@@ -38,6 +38,7 @@ void setup() {
   ultrasonicSensor = new UltrasonicSensor(US_POSITION_FRONT);
   gyroscope = new Gyroscope();
   eventController = new EventController();
+  eventController->queueEvent(PUBLISH_EVENT_CALIBRATION);
 
   Particle.function("makeMove", makeMove);
   serialTimer.start();

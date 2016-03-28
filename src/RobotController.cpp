@@ -229,6 +229,7 @@ const char* RobotController::robotStateToString(RobotState state) {
 
 void RobotController::outputSerial() {
   Serial.println("ROBOT STATE");
+  Serial.println(WiFi.localIP().raw().ipv4);
 
   Serial.print("\tCurrent -> ");
   Serial.println(robotStateToString(state));
