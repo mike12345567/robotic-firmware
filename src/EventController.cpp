@@ -12,9 +12,12 @@
 #define DEFAULT_PUBLISH_TTL 60
 #define INTERVAL_TIMER_MS 5000
 #define QUEUE_EMPTY_RATE_MS 300
+#define STR_BUFFER 64
 
 static char packedBytes[MAX_PUBLISH_BYTES];
 static char publishArray[MAX_PUBLISH_BYTES];
+static char localBuffer[MAX_PUBLISH_BYTES];
+static char localURLBuffer[STR_BUFFER];
 
 EventController::EventController() {
   networkController = new NetworkController();
@@ -26,6 +29,9 @@ EventController::EventController() {
   queueEmptyTimer = new RobotTimer(true);
   queueEmptyTimer->setDuration(QUEUE_EMPTY_RATE_MS, MILLISECONDS);
   queueEmptyTimer->start();
+
+  /* copy to avoid memory corruption */
+  id = Particle.deviceID();
 }
 
 NetworkController* EventController::getNetworkController() {
@@ -35,23 +41,23 @@ NetworkController* EventController::getNetworkController() {
 const char* EventController::getURL(EventNames name) {
   switch (name) {
     case PUBLISH_EVENT_COMPLETE:
-      return "complete";
+      return "complete\0";
     case PUBLISH_EVENT_STOP:
-      return "stopped";
+      return "stopped\0";
     case PUBLISH_EVENT_FAIL:
-      return "failed";
+      return "failed\0";
     case PUBLISH_EVENT_CALIBRATION:
-      return "calibrationValues";
+      return "calibrationValues\0";
     case PUBLISH_EVENT_ULTRASONIC:
-      return "distanceCm";
+      return "distanceCm\0";
     case PUBLISH_EVENT_GYROSCOPE:
-      return "gyroscopeReadings";
+      return "gyroscopeReadings\0";
     case PUBLISH_EVENT_HAS_FAILED:
-      return "hasFailed";
+      return "hasFailed\0";
     case PUBLISH_EVENT_LOCAL_IP:
-      return "localIP";
+      return "localIP\0";
   }
-  return "unknown";
+  return "unknown\0";
 }
 
 void EventController::queueEvent(EventNames event) {
@@ -146,7 +152,6 @@ void EventController::publishFromQueue() {
   }
   EventNames event = events.front();
   events.pop_front();
-  Serial.println("EVENT OCCURRED!");
 
   switch (event) {
     case PUBLISH_EVENT_COMPLETE:
@@ -209,10 +214,21 @@ unsigned int EventController::packBytes(bool sign, int numberInts, ...) {
 }
 
 void EventController::publish(const char *url, unsigned int byteCount) {
-  memset(&publishArray, 0, byteCount+1);
+  memset(&publishArray, 0, sizeof(publishArray));
+  memset(&localBuffer, 0, sizeof(localBuffer));
+  memset(&localURLBuffer, 0, sizeof(localURLBuffer));
+  strcat(localURLBuffer, id.c_str());
+  strcat(localURLBuffer, "/");
+  strcat(localURLBuffer, url);
 
-  base64_enc_len(byteCount);
+  int base64Len = base64_enc_len(byteCount);
   base64_encode(publishArray, packedBytes, byteCount);
+  memcpy(localBuffer, publishArray, sizeof(localBuffer));
 
   Particle.publish(url, publishArray, DEFAULT_PUBLISH_TTL, PRIVATE);
+  networkController->sendPackedBytes(localURLBuffer, localBuffer, base64Len);
+}
+
+const char* EventController::getID() {
+  return id.c_str();
 }

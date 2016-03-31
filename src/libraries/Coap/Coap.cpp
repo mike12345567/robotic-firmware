@@ -1,26 +1,32 @@
 #include "Coap.h"
-
-#if defined(ARDUINO)
-#include "Arduino.h"
-#elif defined(SPARK)
 #include "application.h"
-#endif
 
 #define LOGGING
+/* this is as short a delay as I could make it after testing */
+#define REBUILD_SOCKET_DELAY_SECONDS 5
+#define NO_PACKET_SENT_SIZE 0
 
+Coap::Coap() {
+  rebuildSocketTimer = new RobotTimer(false);
+  connect();
+}
 
-Coap::Coap(
-#if defined(ARDUINO)
-    UDP& udp
-#endif
-) {
+void Coap::connect() {
+    connected = true;
+    rebuildSocket = true;
+    rebuildSocketTimer->stop();
+    rebuildSocketTimer->setDuration(REBUILD_SOCKET_DELAY_SECONDS, SECONDS);
+    rebuildSocketTimer->start();
+}
 
-#if defined(ARDUINO)
-    this->_udp = &udp;
-#elif defined(SPARK)
-    this->_udp = new UDP();
-#endif
+bool Coap::isConnected() {
+  return connected;
+}
 
+void Coap::disconnect() {
+    connected = false;
+    rebuildSocket = false;
+    rebuildSocketTimer->stop();
 }
 
 bool Coap::start() {
@@ -29,8 +35,16 @@ bool Coap::start() {
 }
 
 bool Coap::start(int port) {
-    this->_udp->begin(port);
+    _udp.begin(port);
     return true;
+}
+
+bool Coap::isSocketReady() {
+  return (connected && !rebuildSocket);
+}
+
+bool Coap::socketRequiresRebuild() {
+  return (connected && rebuildSocket);
 }
 
 uint16_t Coap::sendPacket(CoapPacket &packet, IPAddress ip) {
@@ -38,7 +52,12 @@ uint16_t Coap::sendPacket(CoapPacket &packet, IPAddress ip) {
 }
 
 uint16_t Coap::sendPacket(CoapPacket &packet, IPAddress ip, int port) {
-    uint8_t buffer[BUF_MAX_SIZE];
+    if (!isSocketReady()) {
+        return NO_PACKET_SENT_SIZE;
+    }
+
+    static uint8_t buffer[BUF_MAX_SIZE];
+    memset(buffer, 0, sizeof(buffer));
     uint8_t *p = buffer;
     uint16_t running_delta = 0;
     uint16_t packetSize = 0;
@@ -66,6 +85,7 @@ uint16_t Coap::sendPacket(CoapPacket &packet, IPAddress ip, int port) {
         uint8_t len, delta;
 
         if (packetSize + 5 + packet.options[i].length >= BUF_MAX_SIZE) {
+            Serial.println("Packet over BUF_MAX_SIZE size");
             return 0;
         }
         optdelta = packet.options[i].number - running_delta;
@@ -98,6 +118,7 @@ uint16_t Coap::sendPacket(CoapPacket &packet, IPAddress ip, int port) {
     // make payload
     if (packet.payloadlen > 0) {
         if ((packetSize + 1 + packet.payloadlen) >= BUF_MAX_SIZE) {
+            Serial.println("Packet over BUF_MAX_SIZE size");
             return 0;
         }
         *p++ = 0xFF;
@@ -105,9 +126,20 @@ uint16_t Coap::sendPacket(CoapPacket &packet, IPAddress ip, int port) {
         packetSize += 1 + packet.payloadlen;
     }
 
-    _udp->beginPacket(ip, port);
-    _udp->write(buffer, packetSize);
-    _udp->endPacket();
+    if(connected && !rebuildSocket) {
+      _udp.beginPacket(ip, port);
+      _udp.write(buffer, packetSize);
+
+      int retval = _udp.endPacket();
+
+      if (retval < 0) {
+        errorCodeCount++;
+        /* connect acts as reconnect */
+        connect();
+      } else {
+        correctPacketCount++;
+      }
+    }
 
     return packet.messageid;
 }
@@ -116,15 +148,16 @@ uint16_t Coap::get(IPAddress ip, int port, char *url) {
     return this->send(ip, port, url, COAP_TYPE::COAP_CON, COAP_METHOD::COAP_GET, NULL, 0, NULL, 0);
 }
 
-uint16_t Coap::post(IPAddress ip, int port, char *url, uint8_t *payload, int payloadlen) {
+uint16_t Coap::post(IPAddress ip, int port, char *url, char *payload, int payloadlen) {
     return this->send(ip, port, url, COAP_TYPE::COAP_NONCON, COAP_METHOD::COAP_POST, NULL, 0, (uint8_t *)payload, payloadlen);
 }
 
-uint16_t Coap::put(IPAddress ip, int port, char *url, uint8_t *payload, int payloadlen) {
-    return this->send(ip, port, url, COAP_CON, COAP_PUT, NULL, 0, (uint8_t *)payload, payloadlen);
-}
-
 uint16_t Coap::send(IPAddress ip, int port, char *url, COAP_TYPE type, COAP_METHOD method, uint8_t *token, uint8_t tokenlen, uint8_t *payload, uint32_t payloadlen) {
+    DEBUG("Coap::send > make packet");
+
+    if (!isSocketReady()) {
+        return NO_PACKET_SENT_SIZE;
+    }
 
     // make packet
     CoapPacket packet;
@@ -141,7 +174,7 @@ uint16_t Coap::send(IPAddress ip, int port, char *url, COAP_TYPE type, COAP_METH
     // if more options?
     packet.options[packet.optionnum].buffer = (uint8_t *)url;
     packet.options[packet.optionnum].length = strlen(url);
-    packet.options[packet.optionnum].number = COAP_URI_PATH;
+    packet.options[packet.optionnum].number = COAP_OPTION_NUMBER::COAP_URI_PATH;
     packet.optionnum++;
 
     // send packet
@@ -194,18 +227,31 @@ int Coap::parseOption(CoapOption *option, uint16_t *running_delta, uint8_t **buf
 }
 
 bool Coap::loop() {
+    int32_t packetlen = 0;
+    static uint8_t buffer[BUF_MAX_SIZE];
+    memset(buffer, 0, sizeof(buffer));
 
-    uint8_t buffer[BUF_MAX_SIZE];
-    int32_t packetlen = _udp->parsePacket();
+    if(isSocketReady()) {
+        packetlen = _udp.parsePacket();
+    }
+
+    if (socketRequiresRebuild() && rebuildSocketTimer->isComplete()) {
+        /* only rebuild UDP socket if we are connected to WiFi */
+        Serial.println("Rebuilding Socket");
+        _udp.stop();
+        _udp.begin(COAP_DEFAULT_PORT);
+        rebuildSocket = false;
+        rebuildSocketTimer->stop();
+    }
 
     while (packetlen > 0) {
-        packetlen = _udp->read(buffer, packetlen >= BUF_MAX_SIZE ? BUF_MAX_SIZE : packetlen);
+        packetlen = _udp.read(buffer, packetlen >= BUF_MAX_SIZE ? BUF_MAX_SIZE : packetlen);
 
         CoapPacket packet;
 
         // parse coap packet header
         if (packetlen < COAP_HEADER_SIZE || (((buffer[0] & 0xC0) >> 6) != 1)) {
-            packetlen = _udp->parsePacket();
+            packetlen = _udp.parsePacket();
             continue;
         }
 
@@ -218,7 +264,7 @@ bool Coap::loop() {
         if (packet.tokenlen == 0)  packet.token = NULL;
         else if (packet.tokenlen <= 8)  packet.token = buffer + 4;
         else {
-            packetlen = _udp->parsePacket();
+            packetlen = _udp.parsePacket();
             continue;
         }
 
@@ -229,6 +275,7 @@ bool Coap::loop() {
             uint8_t *end = buffer + packetlen;
             uint8_t *p = buffer + COAP_HEADER_SIZE + packet.tokenlen;
             while(optionIndex < MAX_OPTION_NUM && *p != 0xFF && p < end) {
+                //packet.options[optionIndex];
                 if (0 != parseOption(&packet.options[optionIndex], &delta, &p, end-p))
                     return false;
                 optionIndex++;
@@ -244,49 +291,51 @@ bool Coap::loop() {
             }
         }
 
-        if (packet.type == COAP_ACK) {
+        if (packet.type == COAP_TYPE::COAP_ACK) {
             // call response function
-            resp(packet, _udp->remoteIP(), _udp->remotePort());
+            resp(packet, _udp.remoteIP(), _udp.remotePort());
 
-        } else if (packet.type == COAP_CON) {
+        } else if (packet.type == COAP_TYPE::COAP_CON) {
             // call endpoint url function
+            String url = "";
+            String query = "";
             for (int i = 0; i < packet.optionnum; i++) {
                 if (packet.options[i].number == COAP_URI_PATH && packet.options[i].length > 0) {
                     char urlname[packet.options[i].length + 1];
                     memcpy(urlname, packet.options[i].buffer, packet.options[i].length);
                     urlname[packet.options[i].length] = '\0';
-                    String url = urlname;
-#if defined(ARDUINO)
-                    if (!uri.find(url)) {
-#elif defined(SPARK)
-                    if (uri.find(url) == uri.end()) {
-#endif
-                        sendResponse(_udp->remoteIP(), _udp->remotePort(), packet.messageid, NULL, 0,
-                                COAP_NOT_FOUNT, COAP_NONE, NULL, 0);
+                    if (strlen(url) == 0) {
+                        url += String(urlname);
                     } else {
-#if defined(ARDUINO)
-                        uri.find(url)(packet, _udp->remoteIP(), _udp->remotePort());
-#elif defined(SPARK)
-                        uri[url](packet, _udp->remoteIP(), _udp->remotePort());
-#endif
+                        url += "/" + String(urlname);
                     }
+                } else if (packet.options[i].number == COAP_URI_QUERY && packet.options[i].length > 0) {
+                    char urlquery[packet.options[i].length + 1];
+                    memcpy(urlquery, packet.options[i].buffer, packet.options[i].length);
+                    urlquery[packet.options[i].length] = '\0';
+                    query += String(urlquery);
                 }
+            }
+            if (uri.find(url) == uri.end()) {
+                DEBUG("can't find endpoint url");
+            } else {
+                uri[url](packet, _udp.remoteIP(), _udp.remotePort());
             }
         }
 
         // next packet
-        packetlen = _udp->parsePacket();
+        packetlen = _udp.parsePacket();
     }
 
     return true;
 }
 
 uint16_t Coap::sendResponse(IPAddress ip, int port, uint16_t messageid) {
-    return this->sendResponse(ip, port, messageid, NULL, 0, COAP_CONTENT, COAP_TEXT_PLAIN, NULL, 0);
+    return this->sendResponse(ip, port, messageid, NULL, 0, COAP_RESPONSE_CODE::COAP_CREATED, COAP_CONTENT_TYPE::COAP_TEXT_PLAIN, NULL, 0);
 }
 
 uint16_t Coap::sendResponse(IPAddress ip, int port, uint16_t messageid, uint8_t *payload, int payloadlen) {
-    return this->sendResponse(ip, port, messageid, payload, payloadlen, COAP_CONTENT, COAP_TEXT_PLAIN, NULL, 0);
+    return this->sendResponse(ip, port, messageid, payload, payloadlen, COAP_RESPONSE_CODE::COAP_CREATED, COAP_CONTENT_TYPE::COAP_TEXT_PLAIN, NULL, 0);
 }
 
 

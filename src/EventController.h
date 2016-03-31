@@ -22,6 +22,7 @@ typedef std::deque<EventNames> EventQueue;
 
 class EventController {
   private:
+    String id;
     RobotTimer* intervalTimer = NULL;
     RobotTimer* queueEmptyTimer = NULL;
     EventQueue events;
@@ -50,6 +51,7 @@ class EventController {
 
     void queueEvent(EventNames event);
     void process();
+    const char* getID();
 };
 
 #endif

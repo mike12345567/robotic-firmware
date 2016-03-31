@@ -1,46 +1,23 @@
-/*
-CoAP library for Core/Photon.
-This software is released under the MIT License.
-Copyright (c) 2014 Hirotaka Niisato
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
+#ifndef _COAP_H_
+#define _COAP_H_
 
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-#ifndef __SIMPLE_COAP_H__
-#define __SIMPLE_COAP_H__
-
-#if defined(ARDUINO)
-#include "Udp.h"
-#define MAX_CALLBACK 10
-#elif defined(SPARK)
-#undef min
-#undef max
+#include "MapHack.h"
+#include <vector>
+#include <stdio.h>
+#include <time.h>
+#include "RobotTimer.h"
 #include <map>
+
 #include "spark_wiring_string.h"
 #include "spark_wiring_usbserial.h"
 #include "spark_wiring_udp.h"
 #include "spark_wiring_ipaddress.h"
-#endif
 
 #define COAP_HEADER_SIZE 4
 #define COAP_OPTION_HEADER_SIZE 1
 #define COAP_PAYLOAD_MARKER 0xFF
 #define MAX_OPTION_NUM 10
-#define BUF_MAX_SIZE 50
+#define BUF_MAX_SIZE 512
 #define COAP_DEFAULT_PORT 5683
 
 #define RESPONSE_CODE(class, detail) ((class << 5) | (detail))
@@ -102,7 +79,6 @@ typedef enum {
 } COAP_OPTION_NUMBER;
 
 typedef enum {
-    COAP_NONE = -1,
     COAP_TEXT_PLAIN = 0,
     COAP_APPLICATION_LINK_FORMAT = 40,
     COAP_APPLICATION_XML = 41,
@@ -133,79 +109,47 @@ class CoapPacket {
 };
 typedef void (*callback)(CoapPacket &, IPAddress, int);
 
-#if defined(ARDUINO)
-class CoapUri {
-    private:
-        String u[MAX_CALLBACK];
-        callback c[MAX_CALLBACK];
-    public:
-        CoapUri() {
-            for (int i = 0; i < MAX_CALLBACK; i++) {
-                u[i] = "";
-                c[i] = NULL;
-            }
-        };
-        void add(callback call, String url) {
-            for (int i = 0; i < MAX_CALLBACK; i++)
-                if (c[i] != NULL && u[i].equals(url)) {
-                    c[i] = call;
-                    return ;
-                }
-            for (int i = 0; i < MAX_CALLBACK; i++) {
-                if (c[i] == NULL) {
-                    c[i] = call;
-                    u[i] = url;
-                    return;
-                }
-            }
-        };
-        callback find(String url) {
-            for (int i = 0; i < MAX_CALLBACK; i++) if (c[i] != NULL && u[i].equals(url)) return c[i];
-            return NULL;
-        } ;
-};
-#endif
 
 class Coap {
     private:
-        UDP *_udp;
-#if defined(ARDUINO)
-        CoapUri uri;
-#elif defined(SPARK)
+        UDP _udp;
         std::map<String, callback> uri;
-#endif
         callback resp;
         int _port;
+        RobotTimer* rebuildSocketTimer = NULL;
+
+        bool rebuildSocket = true;
+        bool connected = false;
 
         uint16_t sendPacket(CoapPacket &packet, IPAddress ip);
         uint16_t sendPacket(CoapPacket &packet, IPAddress ip, int port);
         int parseOption(CoapOption *option, uint16_t *running_delta, uint8_t **buf, size_t buflen);
 
+        bool isSocketReady();
+        bool socketRequiresRebuild();
+
     public:
-        Coap(
-#if defined(ARDUINO)
-            UDP& udp
-#endif
-        );
+        int errorCodeCount = 0;
+        int correctPacketCount = 0;
+        Coap();
         bool start();
         bool start(int port);
-        void response(callback c) { resp = c; }
-
-#if defined(ARDUINO)
-        void server(callback c, String url) { uri.add(c, url); }
-#elif defined(SPARK)
         void server(callback c, String url) { uri[url]  = c; }
-#endif
+        void response(callback c) { resp = c; }
+        bool isConnected();
+
         uint16_t sendResponse(IPAddress ip, int port, uint16_t messageid);
         uint16_t sendResponse(IPAddress ip, int port, uint16_t messageid, uint8_t *payload, int payloadlen);
         uint16_t sendResponse(IPAddress ip, int port, uint16_t messageid, uint8_t *payload, int payloadlen, COAP_RESPONSE_CODE code, COAP_CONTENT_TYPE type, uint8_t *token, int tokenlen);
 
         uint16_t get(IPAddress ip, int port, char *url);
-        uint16_t post(IPAddress ip, int port, char *url, uint8_t *payload, int payloadlen);
-        uint16_t put(IPAddress ip, int port, char *url, uint8_t *payload, int payloadlen);
+        uint16_t post(IPAddress ip, int port, char *url, char *payload, int payloadlen);
         uint16_t send(IPAddress ip, int port, char *url, COAP_TYPE type, COAP_METHOD method, uint8_t *token, uint8_t tokenlen, uint8_t *payload, uint32_t payloadlen);
 
         bool loop();
+
+        void disconnect();
+        void connect();
 };
 
 #endif

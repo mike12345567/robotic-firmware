@@ -197,6 +197,7 @@ void serialOutput() {
   Serial.print("[H");
 
   Serial.println("Robotic Firmware - 2015 - Michael Drury\n");
+  Serial.print("ID - ");Serial.println(eventController->getID());
 
   robotController->outputSerial();
   Serial.println("\n");
