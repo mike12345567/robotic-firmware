@@ -33,19 +33,16 @@ void NetworkController::process() {
 }
 
 void callbackMakeMove(CoapPacket &packet, IPAddress ip, int port) {
-  Serial.println("COAP HAPPENED");
   NetworkController* networkController = getEventController()->getNetworkController();
 
   String params = (const char*)packet.payload;
   makeMove(params);
 
-  networkController->sendCoapResponse(ip, port, packet.messageid, NULL, 0, COAP_RESPONSE_CODE::COAP_CREATED, COAP_CONTENT_TYPE::COAP_TEXT_PLAIN);
+  networkController->sendCoapResponse(ip, port, ++packet.messageid, NULL, 0, COAP_RESPONSE_CODE::COAP_VALID, COAP_CONTENT_TYPE::COAP_TEXT_PLAIN);
 }
 
 void callbackResponse(CoapPacket &packet, IPAddress ip, int port) {
-  char p[packet.payloadlen + 1];
-  memcpy(p, packet.payload, packet.payloadlen);
-  p[packet.payloadlen] = '\0';
+  NetworkController* networkController = getEventController()->getNetworkController();
 
-  Serial.println(p);
+  networkController->sendCoapResponse(ip, port, ++packet.messageid, NULL, 0, COAP_RESPONSE_CODE::COAP_VALID, COAP_CONTENT_TYPE::COAP_TEXT_PLAIN);
 }
