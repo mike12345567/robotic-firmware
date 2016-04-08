@@ -41,23 +41,25 @@ NetworkController* EventController::getNetworkController() {
 const char* EventController::getURL(EventNames name) {
   switch (name) {
     case PUBLISH_EVENT_COMPLETE:
-      return "complete\0";
+      return "complete";
     case PUBLISH_EVENT_STOP:
-      return "stopped\0";
+      return "stopped";
     case PUBLISH_EVENT_FAIL:
-      return "failed\0";
+      return "failed";
     case PUBLISH_EVENT_CALIBRATION:
-      return "calibrationValues\0";
+      return "calibrationValues";
     case PUBLISH_EVENT_ULTRASONIC:
-      return "distanceCm\0";
+      return "distanceCm";
     case PUBLISH_EVENT_GYROSCOPE:
-      return "gyroscopeReadings\0";
+      return "gyroscopeReadings";
     case PUBLISH_EVENT_HAS_FAILED:
-      return "hasFailed\0";
+      return "hasFailed";
     case PUBLISH_EVENT_LOCAL_IP:
-      return "localIP\0";
+      return "localIP";
+    case PUBLISH_EVENT_MOVE_STATUS:
+      return "moveStatus";
   }
-  return "unknown\0";
+  return "unknown";
 }
 
 void EventController::queueEvent(EventNames event) {
@@ -85,12 +87,6 @@ void EventController::publishHasFailed() {
   if (getRobotController()->hasFailed()) {
     Particle.publish(getURL(PUBLISH_EVENT_HAS_FAILED));
   }
-}
-
-void EventController::publishLocalIP() {
-  IPAddress addr = WiFi.localIP();
-  unsigned int byteCount = packBytes(false, 1, addr.raw().ipv4);
-  publish(getURL(PUBLISH_EVENT_LOCAL_IP), byteCount);
 }
 
 void EventController::publishCalibration() {
@@ -121,12 +117,26 @@ void EventController::publishUltrasonic() {
 }
 
 void EventController::publishGyroscope() {
-  GyroscopeReadings* readings = getGyroscope()->getCurrentReadings();
+  if (!getGyroscope()->isReady()) return;
+  GyroscopeReading* readings = getGyroscope()->getCurrentReadings();
 
   unsigned int byteCount = packBytes(true, 6,
       readings->accelX, readings->accelY, readings->accelZ,
       readings->gyroX, readings->gyroY, readings->gyroZ);
   publish(getURL(PUBLISH_EVENT_GYROSCOPE), byteCount);
+}
+
+void EventController::publishLocalIP() {
+  IPAddress addr = WiFi.localIP();
+  unsigned int byteCount = packBytes(false, 1, addr.raw().ipv4);
+  publish(getURL(PUBLISH_EVENT_LOCAL_IP), byteCount);
+}
+
+void EventController::publishMoveStatus() {
+  int isMoving = getRobotController()->isMoving() ? 1 : 0;
+
+  unsigned int byteCount = packBytes(false, 1, isMoving);
+  publish(getURL(PUBLISH_EVENT_MOVE_STATUS), byteCount);
 }
 
 void EventController::publishIntervalBased() {
@@ -177,6 +187,9 @@ void EventController::publishFromQueue() {
       break;
     case PUBLISH_EVENT_LOCAL_IP:
       publishLocalIP();
+      break;
+    case PUBLISH_EVENT_MOVE_STATUS:
+      publishMoveStatus();
       break;
   }
 }

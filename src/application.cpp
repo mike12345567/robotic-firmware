@@ -32,7 +32,7 @@ unsigned int nextStateChangeMs = 0;
 unsigned int lastStateChangeMs = 0;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9800);
   storageController = new StorageController();
   robotController = new RobotController();
   ultrasonicSensor = new UltrasonicSensor(US_POSITION_FRONT);

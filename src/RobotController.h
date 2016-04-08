@@ -55,6 +55,7 @@ class RobotController {
 
     Calibration* getCalibration(bool left);
     unsigned int getSpeed();
+    bool isMoving();
 
     void outputSerial();
 };

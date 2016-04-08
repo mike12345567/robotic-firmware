@@ -24,6 +24,9 @@ RobotController::RobotController() {
 }
 
 void RobotController::process() {
+  if (failed && state != ROBOT_STOPPED) {
+    changeState(ROBOT_STOPPED);
+  }
   motorRight->process();
   motorLeft->process();
 }
@@ -67,6 +70,12 @@ void RobotController::setMotorStates(MotorState state) {
 }
 
 void RobotController::changeState(RobotState newState) {
+  /* don't move the robot while it is failed */
+  if (failed && newState != ROBOT_STOPPED) {
+    getEventController()->queueEvent(PUBLISH_EVENT_FAIL);
+    return;
+  }
+
   Serial.print("CHANGING STATE -> ");
   Serial.println(robotStateToString(newState));
 
@@ -128,6 +137,7 @@ void RobotController::changeState(RobotState newState) {
   }
 
   state = newState;
+  getEventController()->queueEvent(PUBLISH_EVENT_MOVE_STATUS);
 }
 
 void RobotController::setRobotSpeed(unsigned int speed) {
@@ -172,6 +182,9 @@ unsigned int RobotController::getSpeed() {
   return speed;
 }
 
+bool RobotController::isMoving() {
+  return this->state != ROBOT_STOPPED;
+}
 
 bool RobotController::hasFailed() {
   return failed;
@@ -229,7 +242,6 @@ const char* RobotController::robotStateToString(RobotState state) {
 
 void RobotController::outputSerial() {
   Serial.println("ROBOT STATE");
-  Serial.println(WiFi.localIP().raw().ipv4);
 
   Serial.print("\tCurrent -> ");
   Serial.println(robotStateToString(state));

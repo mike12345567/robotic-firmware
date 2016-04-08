@@ -15,7 +15,8 @@ enum EventNames {
   PUBLISH_EVENT_ULTRASONIC = 5,
   PUBLISH_EVENT_GYROSCOPE = 6,
   PUBLISH_EVENT_HAS_FAILED = 7,
-  PUBLISH_EVENT_LOCAL_IP = 8
+  PUBLISH_EVENT_LOCAL_IP = 8,
+  PUBLISH_EVENT_MOVE_STATUS = 9
 };
 
 typedef std::deque<EventNames> EventQueue;
@@ -38,6 +39,7 @@ class EventController {
     void publishUltrasonic();
     void publishGyroscope();
     void publishLocalIP();
+    void publishMoveStatus();
 
     void publishIntervalBased();
     void publishFromQueue();
