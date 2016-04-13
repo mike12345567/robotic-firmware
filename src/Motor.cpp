@@ -8,7 +8,7 @@
 #define NO_LOAD_MOTOR_RPM 140
 #define MINIMUM_FRIC_CALIB 0.8
 #define SMALL_TURN_LOW_SPEED 1.15
-#define LOW_TURN_SPEED 220
+#define LOW_TURN_SPEED 150
 #define SMALL_TURN_ANGLE 90
 #define CLEANUP_TIME_TURN_MS 500
 
@@ -68,12 +68,8 @@ void Motor::pinOut(MotorState state, bool turning) {
     trueFwdSpeed += calibration->getFwdSpeedCalibration();
     trueBackSpeed += calibration->getBackSpeedCalibration();
   } else {
-    if (trueFwdSpeed < minimumTurnSpeed) {
-      trueFwdSpeed = minimumTurnSpeed;
-    }
-    if (trueBackSpeed < minimumTurnSpeed) {
-      trueBackSpeed = minimumTurnSpeed;
-    }
+    trueFwdSpeed = minimumTurnSpeed;
+    trueBackSpeed = minimumTurnSpeed;
   }
 
   bool direction = calibration->getMotorDirection() == DIRECTION_FORWARD;

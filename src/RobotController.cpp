@@ -2,7 +2,7 @@
 #include "RoboticFirmware.h"
 
 #include "PinMapping.h"
-#include "PublishEvent.h"
+#include "EventController.h"
 #include "StorageController.h"
 #include "Calibration.h"
 
@@ -24,6 +24,9 @@ RobotController::RobotController() {
 }
 
 void RobotController::process() {
+  if (failed && state != ROBOT_STOPPED) {
+    changeState(ROBOT_STOPPED);
+  }
   motorRight->process();
   motorLeft->process();
 }
@@ -34,7 +37,7 @@ void RobotController::dangerClose(UltrasonicPosition position, unsigned int dist
   notDangerCloseState = notDangerCloseState && this->state != ROBOT_CLEANUP;
 #endif
   if (position == US_POSITION_FRONT && notDangerCloseState) {
-    PublishEvent::QueueEvent(PUBLISH_EVENT_STOP);
+    getEventController()->queueEvent(PUBLISH_EVENT_STOP);
     changeState(ROBOT_STOPPED);
   }
 }
@@ -42,7 +45,7 @@ void RobotController::dangerClose(UltrasonicPosition position, unsigned int dist
 void RobotController::tiltOccurred(unsigned int x, unsigned int y) {
   if (!failed) {
   // In future this should kill the robot
-    PublishEvent::QueueEvent(PUBLISH_EVENT_FAIL);
+    getEventController()->queueEvent(PUBLISH_EVENT_FAIL);
     failed = true;
   }
   if (this->state != ROBOT_STOPPED) {
@@ -67,6 +70,12 @@ void RobotController::setMotorStates(MotorState state) {
 }
 
 void RobotController::changeState(RobotState newState) {
+  /* don't move the robot while it is failed */
+  if (failed && newState != ROBOT_STOPPED) {
+    getEventController()->queueEvent(PUBLISH_EVENT_FAIL);
+    return;
+  }
+
   Serial.print("CHANGING STATE -> ");
   Serial.println(robotStateToString(newState));
 
@@ -107,11 +116,19 @@ void RobotController::changeState(RobotState newState) {
       setMotorStates(FORWARD);
       break;
     case ROBOT_TURNING_LEFT:
-      motorRight->setState(FORWARD);
+#ifdef ONE_WHEEL_ROTATION
       motorLeft->setState(STOPPED);
+#else
+      motorLeft->setState(BACKWARD);
+#endif
+      motorRight->setState(FORWARD);
       break;
     case ROBOT_TURNING_RIGHT:
+#ifdef ONE_WHEEL_ROTATION
       motorRight->setState(STOPPED);
+#else
+      motorRight->setState(BACKWARD);
+#endif
       motorLeft->setState(FORWARD);
       break;
     case ROBOT_BACKWARD:
@@ -120,6 +137,7 @@ void RobotController::changeState(RobotState newState) {
   }
 
   state = newState;
+  getEventController()->queueEvent(PUBLISH_EVENT_MOVE_STATUS);
 }
 
 void RobotController::setRobotSpeed(unsigned int speed) {
@@ -164,6 +182,9 @@ unsigned int RobotController::getSpeed() {
   return speed;
 }
 
+bool RobotController::isMoving() {
+  return this->state != ROBOT_STOPPED;
+}
 
 bool RobotController::hasFailed() {
   return failed;
@@ -179,7 +200,7 @@ void RobotController::motorStateChange() {
       motorRight->getState() == STOPPED) {
     if (movingForDistance) {
       movingForDistance = false;
-      PublishEvent::QueueEvent(PUBLISH_EVENT_COMPLETE);
+      getEventController()->queueEvent(PUBLISH_EVENT_COMPLETE);
     }
 #ifdef WHEEL_CASTER
     if (cleaningCaster) {

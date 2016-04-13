@@ -208,18 +208,12 @@ function outputDistances(array){
 
 function outputGyroReadings(array) {
     var i = 0;
-    var ax = (array[i++] | (array[i++] << 8));
-    if (ax > maxGyroRead) ax -= 0x10000;
-    var ay = (array[i++] | (array[i++] << 8));
-    if (ay > maxGyroRead) ay -= 0x10000;
-    var az = (array[i++] | (array[i++] << 8));
-    if (az > maxGyroRead) az -= 0x10000;
-    var gx = (array[i++] | (array[i++] << 8));
-    if (gx > maxGyroRead) gx -= 0x10000;
-    var gy = (array[i++] | (array[i++] << 8));
-    if (gy > maxGyroRead) gy -= 0x10000;
-    var gz = (array[i++] | (array[i++] << 8));
-    if (gz > maxGyroRead) gz -= 0x10000;
+    var ax = (array[i++] | (array[i++] << 8) | (array[i++] << 16) | (array[i++] << 24));
+    var ay = (array[i++] | (array[i++] << 8) | (array[i++] << 16) | (array[i++] << 24));
+    var az = (array[i++] | (array[i++] << 8) | (array[i++] << 16) | (array[i++] << 24));
+    var gx = (array[i++] | (array[i++] << 8) | (array[i++] << 16) | (array[i++] << 24));
+    var gy = (array[i++] | (array[i++] << 8) | (array[i++] << 16) | (array[i++] << 24));
+    var gz = (array[i++] | (array[i++] << 8) | (array[i++] << 16) | (array[i++] << 24));
     
     var output = "ax: " + ax.toString() + ", ay: " + ay.toString() + ", az: " + az.toString() +
                         ", gx: " + gx.toString() + ", gy: " + gy.toString() + ", gz: " + gz.toString();
