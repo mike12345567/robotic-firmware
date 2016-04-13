@@ -68,8 +68,8 @@ void Motor::pinOut(MotorState state, bool turning) {
     trueFwdSpeed += calibration->getFwdSpeedCalibration();
     trueBackSpeed += calibration->getBackSpeedCalibration();
   } else {
-    trueFwdSpeed = minimumTurnSpeed;
-    trueBackSpeed = minimumTurnSpeed;
+    trueFwdSpeed = minimumTurnSpeed + calibration->getFwdSpeedCalibration();
+    trueBackSpeed = minimumTurnSpeed + calibration->getBackSpeedCalibration();
   }
 
   bool direction = calibration->getMotorDirection() == DIRECTION_FORWARD;

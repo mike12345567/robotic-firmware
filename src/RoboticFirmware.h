@@ -24,5 +24,6 @@ UltrasonicSensor* getFrontUltrasonicSensor();
 StorageController* getStorageController();
 EventController* getEventController();
 Gyroscope* getGyroscope();
+void turnOffLed(bool state);
 
 #endif

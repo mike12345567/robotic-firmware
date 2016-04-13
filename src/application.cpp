@@ -138,6 +138,9 @@ int makeMove(String param) {
       if (rightDir != UINTMAX_MAX && leftDir != UINTMAX_MAX) {
         robotController->calibrateDirection(leftDir, rightDir);
       }
+    } else if (strcmp("ledState", args[0]) == 0 && argCount == 2) {
+      unsigned int state = strtoul(args[1], NULL, 10);
+      turnOffLed(state == 1);
     }
 
     if (moving && argCount == 3) {
@@ -150,6 +153,16 @@ int makeMove(String param) {
 
   delete cstring;
   return 0;
+}
+
+void turnOffLed(bool state) {
+  RGB.control(state);
+  // turn off the LED
+  if (state) {
+    RGB.brightness(0, true);
+  } else {
+    RGB.brightness(255, true);
+  }
 }
 
 void addRobotTimer(RobotTimer *timer) {
