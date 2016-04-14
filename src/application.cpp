@@ -215,5 +215,6 @@ void serialOutput() {
   robotController->outputSerial();
   Serial.println("\n");
   ultrasonicSensor->outputSerial();
+  Serial.print("Gyroscope ready -> ");Serial.println(gyroscope->isReady() ? "SUCCESS" : "FAILED");
   gyroscope->outputSerial();
 }

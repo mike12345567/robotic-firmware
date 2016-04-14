@@ -13,7 +13,6 @@ int awd = 0;
 
 Gyroscope::Gyroscope() {
   Wire.begin();
-  memset(&readings, 0, sizeof(readings));
 
   impl.initialize();
   connectionSuccess = impl.testConnection();
@@ -27,7 +26,6 @@ void Gyroscope::process() {
   readings.push_back(reading);
   if (readings.size() > MAXIMUM_READINGS) {
     readings.pop_front();
-    awd++;
   }
 
   if (isReady()) {
@@ -66,7 +64,7 @@ boolean Gyroscope::isReady() {
 }
 
 void Gyroscope::outputSerial() {
-  Serial.println(awd);
+  Serial.println(readings.size());
 
   if (!isReady()) return;
   GyroscopeReading* reading = getCurrentReadings();
