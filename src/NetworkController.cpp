@@ -36,7 +36,7 @@ void callbackMakeMove(CoapPacket &packet, IPAddress ip, int port) {
   NetworkController* networkController = getEventController()->getNetworkController();
 
   String params = (const char*)packet.payload;
-  makeMove(params);
+  command(params);
 
   networkController->sendCoapResponse(ip, port, ++packet.messageid, NULL, 0, COAP_RESPONSE_CODE::COAP_VALID, COAP_CONTENT_TYPE::COAP_TEXT_PLAIN);
 }

@@ -43,9 +43,10 @@ class EventController {
 
     void publishIntervalBased();
     void publishFromQueue();
-    void publish(const char *url, unsigned int byteCount);
+    void publish(EventNames name, unsigned int byteCount);
     void publishString(const char *url, char *string);
     const char* getURL(EventNames name);
+    bool onlyLocalEndpoint(EventNames name);
   public:
     EventController();
 

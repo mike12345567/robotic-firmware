@@ -40,7 +40,7 @@ void setup() {
   eventController = new EventController();
   eventController->queueEvent(PUBLISH_EVENT_CALIBRATION);
 
-  Particle.function("makeMove", makeMove);
+  Particle.function("command", command);
   serialTimer.start();
 }
 
@@ -59,8 +59,7 @@ void loop() {
   eventController->process();
 }
 
-/* TODO: Change this to something more meaningful */
-int makeMove(String param) {
+int command(String param) {
   char *pointer = NULL;
   char *cstring = new char[param.length() + 1];
   char **args = NULL;

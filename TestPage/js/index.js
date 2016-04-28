@@ -1,5 +1,5 @@
 var deviceID = "300032001147343339383037";
-var funcName = "makeMove";
+var funcName = "command";
 var rotationUnit = "degrees";
 var noSelected = "none";
 var waitForLift = false;

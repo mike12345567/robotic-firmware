@@ -103,7 +103,7 @@ void EventController::publishCalibration() {
   unsigned int byteCount = packBytes(false, 7,
       speed, rightSpeedCal, leftSpeedCal, turnCalibration,
       frictionCal, leftDirection, rightDirection);
-  publish(getURL(PUBLISH_EVENT_CALIBRATION), byteCount);
+  publish(PUBLISH_EVENT_CALIBRATION, byteCount);
   queueEvent(PUBLISH_EVENT_LOCAL_IP);
 }
 
@@ -113,7 +113,7 @@ void EventController::publishUltrasonic() {
   distance &= 0xFFFF;
 
   unsigned int byteCount = packBytes(false, 1, distance);
-  publish(getURL(PUBLISH_EVENT_ULTRASONIC), byteCount);
+  publish(PUBLISH_EVENT_ULTRASONIC, byteCount);
 }
 
 void EventController::publishGyroscope() {
@@ -123,20 +123,20 @@ void EventController::publishGyroscope() {
   unsigned int byteCount = packBytes(true, 6,
       readings->accelX, readings->accelY, readings->accelZ,
       readings->gyroX, readings->gyroY, readings->gyroZ);
-  publish(getURL(PUBLISH_EVENT_GYROSCOPE), byteCount);
+  publish(PUBLISH_EVENT_GYROSCOPE, byteCount);
 }
 
 void EventController::publishLocalIP() {
   IPAddress addr = WiFi.localIP();
   unsigned int byteCount = packBytes(false, 1, addr.raw().ipv4);
-  publish(getURL(PUBLISH_EVENT_LOCAL_IP), byteCount);
+  publish(PUBLISH_EVENT_LOCAL_IP, byteCount);
 }
 
 void EventController::publishMoveStatus() {
   int isMoving = getRobotController()->isMoving() ? 1 : 0;
 
   unsigned int byteCount = packBytes(false, 1, isMoving);
-  publish(getURL(PUBLISH_EVENT_MOVE_STATUS), byteCount);
+  publish(PUBLISH_EVENT_MOVE_STATUS, byteCount);
 }
 
 void EventController::publishIntervalBased() {
@@ -194,6 +194,10 @@ void EventController::publishFromQueue() {
   }
 }
 
+bool EventController::onlyLocalEndpoint(EventNames name) {
+  return (name == PUBLISH_EVENT_MOVE_STATUS);
+}
+
 unsigned int EventController::packBytes(bool sign, int numberInts, ...) {
   memset(&packedBytes, 0, sizeof(packedBytes));
   unsigned int byteCount = 0;
@@ -226,10 +230,12 @@ unsigned int EventController::packBytes(bool sign, int numberInts, ...) {
   return byteCount;
 }
 
-void EventController::publish(const char *url, unsigned int byteCount) {
+void EventController::publish(EventNames name, unsigned int byteCount) {
   memset(&publishArray, 0, sizeof(publishArray));
   memset(&localBuffer, 0, sizeof(localBuffer));
   memset(&localURLBuffer, 0, sizeof(localURLBuffer));
+  const char *url = getURL(name);
+
   strcat(localURLBuffer, id.c_str());
   strcat(localURLBuffer, "/");
   strcat(localURLBuffer, url);
@@ -238,7 +244,9 @@ void EventController::publish(const char *url, unsigned int byteCount) {
   base64_encode(publishArray, packedBytes, byteCount);
   memcpy(localBuffer, publishArray, sizeof(localBuffer));
 
-  Particle.publish(url, publishArray, DEFAULT_PUBLISH_TTL, PRIVATE);
+  if (!onlyLocalEndpoint(name)) {
+    Particle.publish(url, publishArray, DEFAULT_PUBLISH_TTL, PRIVATE);
+  }
   networkController->sendPackedBytes(localURLBuffer, localBuffer, base64Len);
 }
 

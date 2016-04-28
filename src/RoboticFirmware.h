@@ -15,7 +15,7 @@ class EventController;
 
 void serialOutput();
 DistanceUnit getDistanceUnitFromArg(char *arg);
-int makeMove(String param);
+int command(String param);
 const char* robotStateToString();
 void addRobotTimer(RobotTimer *timer);
 void publishComplete();
