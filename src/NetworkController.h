@@ -3,7 +3,7 @@
 
 #include "libraries/Coap/Coap.h"
 
-void callbackMakeMove(CoapPacket &packet, IPAddress ip, int port);
+void callbackCommand(CoapPacket &packet, IPAddress ip, int port);
 void callbackResponse(CoapPacket &packet, IPAddress ip, int port);
 
 class NetworkController {

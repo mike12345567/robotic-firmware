@@ -5,12 +5,11 @@
 NetworkController::NetworkController() {
 
   coap.response(callbackResponse);
-  coap.server(callbackMakeMove, "makeMove");
+  coap.server(callbackCommand, "command");
   coap.start();
 }
 
 void NetworkController::sendPackedBytes(char *url, char *bytes, uint32_t bytesSize) {
-  // TODO: may want to store message IDs (if responses are needed)
   coap.post(ip, COAP_DEFAULT_PORT, url, bytes, bytesSize);
 }
 
@@ -32,7 +31,7 @@ void NetworkController::process() {
   }
 }
 
-void callbackMakeMove(CoapPacket &packet, IPAddress ip, int port) {
+void callbackCommand(CoapPacket &packet, IPAddress ip, int port) {
   NetworkController* networkController = getEventController()->getNetworkController();
 
   String params = (const char*)packet.payload;

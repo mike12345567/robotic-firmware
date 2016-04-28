@@ -44,7 +44,6 @@ void RobotController::dangerClose(UltrasonicPosition position, unsigned int dist
 
 void RobotController::tiltOccurred(unsigned int x, unsigned int y) {
   if (!failed) {
-  // In future this should kill the robot
     getEventController()->queueEvent(PUBLISH_EVENT_FAIL);
     failed = true;
   }
