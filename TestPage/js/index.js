@@ -1,4 +1,5 @@
 var deviceID = "300032001147343339383037";
+var accessToken = "";
 var funcName = "command";
 var rotationUnit = "degrees";
 var noSelected = "none";
@@ -59,6 +60,13 @@ InputEnum = {
 }
 
 $(document).ready(function() {
+    if (accessToken == "" || deviceID == "") {
+        alert("Please open index.js and input a valid 'accessToken' and 'deviceID'."+
+                 "\nThe token must pertain to the account with ownership of the robot."+
+                 "\nIf ownership is not known please contact me@michaeldrury.co.uk for details on taking ownership.");
+        window.close();
+    }
+
     spark.login({accessToken: accessToken});
     spark.getEventStream(false, deviceID, function(data) {
         switch (data.name) {
