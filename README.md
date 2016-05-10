@@ -42,3 +42,5 @@ Building and Flashing
 =====================
 
 The firmware can be built using the Makefiles supplied, this requires a Linux distribution and the setup, this requires the *'build-essentials'* package, and if running on a 64-bit machine then *'lib32ncurses5'* and *'lib32z1'* may be required. GCC must also be installed as this is the compiler used throughout the firmware project. The command *'make program'* will build the software as required and load it onto a Particle Device in DFU-MODE connected by USB to the machine. These steps are discussed within this [guide](https://github.com/spark/firmware/blob/develop/docs/gettingstarted.md "Guide").
+
+It is also required that the Particle Firmware submodule be pulled into this project, the git configuration will handle this, by running the command *'git submodule update'* the required source code will be pulled from their Github repository so that the build process can proceed.
