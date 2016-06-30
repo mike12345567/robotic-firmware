@@ -1,4 +1,4 @@
-var deviceID = "300032001147343339383037";
+var deviceID = "";
 var accessToken = "";
 var funcName = "command";
 var rotationUnit = "degrees";
