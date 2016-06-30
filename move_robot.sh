@@ -1,6 +1,6 @@
 #!/bin/bash
 deviceId="300032001147343339383037"
-accessTkn="da837cbd013221af2cac61eea03e15d8459c49ea"
+accessTkn=""
 funcName="makeMove"
 cmd="NONE"
 if [ "$1" == "forward" ] 
